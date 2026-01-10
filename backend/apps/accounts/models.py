@@ -8,6 +8,19 @@ from .managers import UserManager
 class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
+    ROLE_CHOICES = (
+    ("ADMIN", "Admin"),
+    ("INSTRUCTOR", "Instructor"),
+    ("STUDENT", "Student"),
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default="STUDENT"
+    )
+
+
     phone_number = models.CharField(max_length=15, unique=True)
     tenant = models.ForeignKey(
         Tenant,
@@ -28,3 +41,13 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.phone_number
+    
+
+class OTP(models.Model):
+    phone_number=models.CharField(max_length=15)
+    otp=models.CharField(max_length=6)
+    created_at=models.DateTimeField(auto_now_add=True)
+    is_used=models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.phone_number} - {self.otp}"
