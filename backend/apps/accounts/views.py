@@ -14,6 +14,9 @@ from apps.common.responses import success_response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from rest_framework.permissions import IsAuthenticated
+from apps.common.permissions import IsAdmin,IsInstructor,IsStudent
+
 
 
 class SendOTPView(APIView):
@@ -137,3 +140,31 @@ class LoginView(APIView):
                 message="Login successful"
             )
         )
+    
+class AdminDashboardView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        return Response({
+            "success": True,
+            "message": "Welcome Admin",
+            "data": {
+                "user": request.user.phone_number,
+                "role": request.user.role
+            }
+        })
+
+class InstructorDashboardView(APIView):
+    permission_classes = [IsAuthenticated, IsInstructor]
+
+    def get(self, request):
+        return Response({"message": "Instructor dashboard"})
+    
+
+
+class StudentDashboardView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+
+    def get(self, request):
+        return Response({"message": "Student dashboard"})
+
