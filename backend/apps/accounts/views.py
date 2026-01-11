@@ -8,14 +8,16 @@ from apps.common.responses import success_response
 from datetime import timedelta
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
-from apps.accounts.serializers import LoginSerializer
+from apps.accounts.serializers import LoginSerializer,AdminCreateUserSerializer,AdminUpdateUserStatusSerializer
 from apps.common.responses import success_response
-
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-
 from rest_framework.permissions import IsAuthenticated
 from apps.common.permissions import IsAdmin,IsInstructor,IsStudent
+from rest_framework.generics import ListCreateAPIView
+from .permissions import IsAdminUserRole
+from rest_framework.generics import UpdateAPIView
+
 
 
 
@@ -117,6 +119,7 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         phone = serializer.validated_data["phone_number"]
+
         user = User.objects.filter(
             phone_number=phone,
             is_phone_verified=True
@@ -126,6 +129,12 @@ class LoginView(APIView):
             return Response(
                 {"success": False, "message": "Phone not verified"},
                 status=400
+            )
+
+        if not user.is_active:
+            return Response(
+                {"success": False, "message": "Account is disabled"},
+                status=403
             )
 
         refresh = RefreshToken.for_user(user)
@@ -140,6 +149,7 @@ class LoginView(APIView):
                 message="Login successful"
             )
         )
+
     
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
@@ -168,3 +178,27 @@ class StudentDashboardView(APIView):
     def get(self, request):
         return Response({"message": "Student dashboard"})
 
+
+
+
+class AdminUserListCreateView(ListCreateAPIView):
+    permission_classes = [IsAdminUserRole]
+    serializer_class = AdminCreateUserSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(
+            tenant=self.request.user.tenant
+        )
+
+
+
+
+class AdminUserStatusUpdateView(UpdateAPIView):
+    permission_classes = [IsAdminUserRole]
+    serializer_class = AdminUpdateUserStatusSerializer
+    queryset = User.objects.all()
+
+    def get_queryset(self):
+        return User.objects.filter(
+            tenant=self.request.user.tenant
+        )
