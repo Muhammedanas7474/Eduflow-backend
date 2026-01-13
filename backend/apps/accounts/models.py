@@ -8,6 +8,10 @@ from .managers import UserManager
 class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
+    full_name = models.CharField(max_length=255, null=True, blank=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
+
+
     ROLE_CHOICES = (
     ("ADMIN", "Admin"),
     ("INSTRUCTOR", "Instructor"),
