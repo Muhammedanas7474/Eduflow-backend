@@ -103,7 +103,7 @@ DATABASES = {
 from datetime import timedelta
 
 REST_FRAMEWORK = {
-    "EXCEPTION_HANDLER": "apps.common.exception_handler.custom_exception_handler",
+    
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
