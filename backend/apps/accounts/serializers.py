@@ -1,6 +1,7 @@
 from rest_framework import serializers,status
 from .models import User
 from ..common.exceptions import AppException
+from ..tenants.models import Tenant
 
 class SendOTPSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
@@ -17,7 +18,9 @@ class VerifyOTPSerializer(serializers.Serializer):
 
 class LoginSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField()
+    tenant_id = serializers.IntegerField()
+
 
 
 
@@ -26,10 +29,12 @@ from .models import User
 
 
 class RegisterSerializer(serializers.Serializer):
+    tenant_id = serializers.IntegerField()
     full_name = serializers.CharField()
     email = serializers.EmailField()
     phone_number = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+    password = serializers.CharField()
+
 
     def validate(self, data):
         if User.objects.filter(phone_number=data["phone_number"]).exists():
@@ -45,6 +50,12 @@ class RegisterSerializer(serializers.Serializer):
                 status.HTTP_409_CONFLICT,
                 "EMAIL_EXISTS"
             )
+        if not Tenant.objects.filter(id=data["tenant_id"]).exists():
+            raise AppException(
+                "Invalid tenant selected",
+                status.HTTP_409_CONFLICT,
+                "TENANT"
+                )
 
         return data
 
@@ -83,7 +94,7 @@ class AdminUpdateUserStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["is_active"]
-        
+
 
 class ForgotPasswordSerializer(serializers.Serializer):
     phone_number = serializers.CharField()

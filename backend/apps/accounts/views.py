@@ -22,15 +22,14 @@ from apps.common.responses import success_response, error_response
 from apps.common.exceptions import AppException
 from apps.common.permissions import IsAdmin, IsInstructor, IsStudent
 from .utils import set_otp, get_otp, delete_otp
-
-
-
+from rest_framework.permissions import AllowAny
 
 
 
 
 
 class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         try:
             serializer = VerifyOTPSerializer(data=request.data)
@@ -82,7 +81,10 @@ class VerifyOTPView(APIView):
 
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
+        
+
         try:
             serializer = RegisterSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
@@ -96,8 +98,11 @@ class RegisterView(APIView):
                     code="USER_EXISTS"
                 )
 
-            tenant = Tenant.objects.first()
+            tenant = Tenant.objects.get(
+                id=serializer.validated_data["tenant_id"]
+            )
 
+            
             user = User.objects.create_user(
                 phone_number=serializer.validated_data["phone_number"],
                 password=serializer.validated_data["password"],
@@ -131,16 +136,25 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    permission_classes = [AllowAny]
+
     @swagger_auto_schema(request_body=LoginSerializer)
     def post(self, request):
+        
+
         try:
             serializer = LoginSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
             phone = serializer.validated_data["phone_number"]
             password = serializer.validated_data["password"]
+            tenant_id = int(serializer.validated_data["tenant_id"])
 
-            user = User.objects.filter(phone_number=phone).first()
+            user = User.objects.filter(
+                phone_number=phone,
+                tenant_id=tenant_id
+            ).first()
+
             if not user:
                 raise AppException("User not found", status_code=404)
 
@@ -155,7 +169,7 @@ class LoginView(APIView):
                 raise AppException("Account disabled", status_code=403)
 
             otp = set_otp(phone, purpose="login")
-            print(f"LOGIN OTP for {phone}: {otp}")
+            print(f"LOGIN OTP for {phone} (Tenant {tenant_id}): {otp}")
 
             return Response(
                 success_response(message="OTP sent for login"),

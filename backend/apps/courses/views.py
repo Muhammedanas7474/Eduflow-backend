@@ -28,6 +28,7 @@ class CourseViewSet(ModelViewSet):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAdminOrInstructor()]
         return super().get_permissions()
+    
 
     def perform_create(self, serializer):
         serializer.save(
@@ -48,8 +49,10 @@ class LessonViewSet(ModelViewSet):
     def get_queryset(self):
         return Lesson.objects.filter(
             tenant=self.request.user.tenant,
+            course_id=self.request.query_params.get("course"),
             is_active=True
         )
+
 
     def perform_create(self, serializer):
         serializer.save(
