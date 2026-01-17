@@ -44,7 +44,12 @@ class CourseViewSet(ModelViewSet):
 
 class LessonViewSet(ModelViewSet):
     serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrInstructor]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            return [IsAuthenticated(), IsAdminOrInstructor()]
+        return super().get_permissions()
 
     def get_queryset(self):
         return Lesson.objects.filter(
@@ -53,9 +58,9 @@ class LessonViewSet(ModelViewSet):
             is_active=True
         )
 
-
     def perform_create(self, serializer):
         serializer.save(
             tenant=self.request.user.tenant,
             created_by=self.request.user
         )
+

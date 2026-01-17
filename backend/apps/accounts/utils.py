@@ -7,7 +7,7 @@ def generate_otp():
 
 
 
-OTP_TTL = 300  # 5 minutes
+OTP_TTL = 300  
 
 def set_otp(phone, purpose):
     otp = generate_otp()

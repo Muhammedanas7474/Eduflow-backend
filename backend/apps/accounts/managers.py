@@ -6,7 +6,7 @@ class UserManager(BaseUserManager):
         if not phone_number:
             raise ValueError("Phone number is required")
 
-        #  convert tenant ID → Tenant instance
+        
         if isinstance(tenant, int):
             tenant = Tenant.objects.get(id=tenant)
 
