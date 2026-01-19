@@ -29,3 +29,11 @@ media/
 .DS_Store
 .vscode/
 .idea/
+
+
+# Environment
+.env
+
+# Python cache
+__pycache__/
+*.pyc
