@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.enrollments.models import Enrollment,LessonProgress
+from apps.enrollments.models import Enrollment,LessonProgress,EnrollmentRequest
 from apps.accounts.models import User
 from apps.courses.models import Course
 from apps.common.exceptions import AppException
@@ -104,5 +104,58 @@ class LessonProgressCreateSerializer(serializers.ModelSerializer):
         
         attrs["tenant"] = tenant
         attrs["student"] = user
+
+        return attrs
+    
+
+class EnrollmentRequestCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EnrollmentRequest
+        fields = ["course"]
+
+    def validate(self, attrs):
+        request = self.context["request"]
+        student: User = request.user
+        tenant = student.tenant
+        course: Course = attrs.get("course")
+
+        
+        if student.role != "STUDENT":
+            raise AppException(
+                "Only students can request enrollment",
+                status.HTTP_403_FORBIDDEN
+            )
+
+       
+        if course.tenant_id != tenant.id:
+            raise AppException(
+                "Course does not belong to your tenant",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        
+        if Enrollment.objects.filter(
+            tenant=tenant,
+            student=student,
+            course=course
+        ).exists():
+            raise AppException(
+                "You are already enrolled in this course",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        
+        if EnrollmentRequest.objects.filter(
+            tenant=tenant,
+            student=student,
+            course=course
+        ).exists():
+            raise AppException(
+                "Enrollment request already submitted",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        attrs["tenant"] = tenant
+        attrs["student"] = student
 
         return attrs
