@@ -11,6 +11,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 🚨 MUST be first
+load_dotenv(BASE_DIR / ".env")
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -85,10 +94,8 @@ WSGI_APPLICATION = 'eduflow.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+
 
 DATABASES = {
     'default': {
@@ -143,15 +150,7 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-INSTALLED_APPS += ["storages"]
 
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
-
-AWS_QUERYSTRING_AUTH = False
-AWS_DEFAULT_ACL = None
 
 
 
@@ -200,3 +199,10 @@ AUTH_USER_MODEL = "accounts.User"
 
 CORS_ALLOW_ALL_ORIGINS = True
 
+
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME")
+AWS_REGION = os.getenv("AWS_REGION")
