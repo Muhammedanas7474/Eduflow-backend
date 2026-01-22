@@ -43,11 +43,40 @@ class EnrollmentViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        user = request.user
+        tenant = user.tenant
+
+        # Enhanced response with progress data
+        enrollments_data = []
+        for enrollment in queryset:
+            course = enrollment.course
+            total_lessons = Lesson.objects.filter(course=course, is_active=True).count()
+            completed_lessons = 0
+            
+            if user.role == "STUDENT":
+                completed_lessons = LessonProgress.objects.filter(
+                    tenant=tenant,
+                    student=user,
+                    lesson__course=course,
+                    is_completed=True
+                ).count()
+            
+            progress_percentage = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0)
+            
+            enrollments_data.append({
+                "id": enrollment.id,
+                "course": enrollment.course.id,
+                "course_title": course.title,
+                "course_description": course.description,
+                "enrolled_at": enrollment.enrolled_at,
+                "total_lessons": total_lessons,
+                "completed_lessons": completed_lessons,
+                "progress_percentage": progress_percentage,
+            })
 
         return Response(
             success_response(
-                data=serializer.data,
+                data=enrollments_data,
                 message="Enrollments fetched successfully"
             )
         )
@@ -287,6 +316,76 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
             )
         )
     
+
+class InstructorEnrollmentRequestReviewAPIView(APIView):
+    """
+    Allows instructors to approve/reject enrollment requests 
+    for courses they created.
+    """
+    permission_classes = [IsAuthenticated, IsInstructor]
+
+    def post(self, request, request_id):
+        action = request.data.get("action")
+        instructor = request.user
+        tenant = instructor.tenant
+
+        if action not in ["approve", "reject"]:
+            raise AppException(
+                "Invalid action. Use approve or reject",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        # Fetch the enrollment request
+        try:
+            enroll_req = EnrollmentRequest.objects.get(
+                id=request_id,
+                tenant=tenant
+            )
+        except EnrollmentRequest.DoesNotExist:
+            raise AppException(
+                "Enrollment request not found",
+                status.HTTP_404_NOT_FOUND
+            )
+
+        # Verify instructor owns the course
+        if enroll_req.course.created_by != instructor:
+            raise AppException(
+                "You can only review requests for your own courses",
+                status.HTTP_403_FORBIDDEN
+            )
+
+        # Ensure request is pending
+        if enroll_req.status != "PENDING":
+            raise AppException(
+                "Enrollment request already reviewed",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        # Process action
+        enroll_req.reviewed_by = instructor
+        enroll_req.reviewed_at = timezone.now()
+
+        if action == "approve":
+            Enrollment.objects.create(
+                tenant=tenant,
+                student=enroll_req.student,
+                course=enroll_req.course
+            )
+            enroll_req.status = "APPROVED"
+        else:
+            enroll_req.status = "REJECTED"
+
+        enroll_req.save()
+
+        return Response(
+            success_response(
+                data={
+                    "request_id": enroll_req.id,
+                    "status": enroll_req.status
+                },
+                message=f"Enrollment request {enroll_req.status.lower()}"
+            )
+        )
 
 
 class InstructorCourseProgressAPIView(APIView):

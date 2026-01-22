@@ -183,17 +183,48 @@ class LoginView(APIView):
             )
 
 
-
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
+        from apps.courses.models import Course
+        from apps.enrollments.models import Enrollment, EnrollmentRequest
+        from django.utils import timezone
+        from datetime import timedelta
+
+        tenant = request.user.tenant
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+
+        # Statistics
+        total_users = User.objects.filter(tenant=tenant).count()
+        total_students = User.objects.filter(tenant=tenant, role="STUDENT").count()
+        total_instructors = User.objects.filter(tenant=tenant, role="INSTRUCTOR").count()
+        total_courses = Course.objects.filter(tenant=tenant).count()
+        active_courses = Course.objects.filter(tenant=tenant, is_active=True).count()
+        pending_approvals = EnrollmentRequest.objects.filter(tenant=tenant, status="PENDING").count()
+        total_enrollments = Enrollment.objects.filter(tenant=tenant).count()
+        enrollments_this_week = Enrollment.objects.filter(tenant=tenant, enrolled_at__gte=week_ago).count()
+
         return Response(
             success_response(
-                message="Welcome Admin",
-                data={"role": request.user.role}
+                message="Admin Dashboard",
+                data={
+                    "role": request.user.role,
+                    "stats": {
+                        "total_users": total_users,
+                        "total_students": total_students,
+                        "total_instructors": total_instructors,
+                        "total_courses": total_courses,
+                        "active_courses": active_courses,
+                        "pending_approvals": pending_approvals,
+                        "total_enrollments": total_enrollments,
+                        "enrollments_this_week": enrollments_this_week,
+                    }
+                }
             )
         )
+
 
 
 
@@ -202,12 +233,58 @@ class InstructorDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 
     def get(self, request):
+        from apps.courses.models import Course, Lesson
+        from apps.enrollments.models import Enrollment, EnrollmentRequest, LessonProgress
+
+        instructor = request.user
+        tenant = instructor.tenant
+
+        # Get instructor's courses
+        my_courses = Course.objects.filter(tenant=tenant, created_by=instructor)
+        course_ids = my_courses.values_list('id', flat=True)
+
+        # Statistics
+        total_courses = my_courses.count()
+        active_courses = my_courses.filter(is_active=True).count()
+        total_lessons = Lesson.objects.filter(tenant=tenant, course__in=my_courses).count()
+        total_students = Enrollment.objects.filter(tenant=tenant, course__in=my_courses).values('student').distinct().count()
+        pending_enrollments = EnrollmentRequest.objects.filter(tenant=tenant, course__in=my_courses, status="PENDING").count()
+
+        # Calculate average completion rate
+        total_progress = 0
+        total_possible = 0
+        for course in my_courses:
+            lessons_count = Lesson.objects.filter(course=course, is_active=True).count()
+            if lessons_count > 0:
+                enrollments = Enrollment.objects.filter(course=course)
+                for enrollment in enrollments:
+                    completed = LessonProgress.objects.filter(
+                        student=enrollment.student,
+                        lesson__course=course,
+                        is_completed=True
+                    ).count()
+                    total_progress += completed
+                    total_possible += lessons_count
+
+        avg_completion = round((total_progress / total_possible * 100) if total_possible > 0 else 0, 1)
+
         return Response(
             success_response(
-                message="Welcome Instructor",
-                data={"role": request.user.role}
+                message="Instructor Dashboard",
+                data={
+                    "role": request.user.role,
+                    "stats": {
+                        "total_courses": total_courses,
+                        "active_courses": active_courses,
+                        "total_lessons": total_lessons,
+                        "total_students": total_students,
+                        "pending_enrollments": pending_enrollments,
+                        "avg_completion_rate": avg_completion,
+                    }
+                }
             )
         )
+
 
 
 
@@ -215,12 +292,64 @@ class StudentDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get(self, request):
+        from apps.courses.models import Course, Lesson
+        from apps.enrollments.models import Enrollment, EnrollmentRequest, LessonProgress
+
+        student = request.user
+        tenant = student.tenant
+
+        # Get student's enrollments
+        my_enrollments = Enrollment.objects.filter(tenant=tenant, student=student)
+        enrolled_course_ids = my_enrollments.values_list('course_id', flat=True)
+
+        # Statistics
+        courses_enrolled = my_enrollments.count()
+        pending_requests = EnrollmentRequest.objects.filter(tenant=tenant, student=student, status="PENDING").count()
+
+        # Calculate progress
+        total_lessons = 0
+        completed_lessons = 0
+        courses_in_progress = 0
+        courses_completed = 0
+
+        for enrollment in my_enrollments:
+            course_lessons = Lesson.objects.filter(course=enrollment.course, is_active=True).count()
+            completed = LessonProgress.objects.filter(
+                tenant=tenant,
+                student=student,
+                lesson__course=enrollment.course,
+                is_completed=True
+            ).count()
+
+            total_lessons += course_lessons
+            completed_lessons += completed
+
+            if course_lessons > 0:
+                if completed == course_lessons:
+                    courses_completed += 1
+                elif completed > 0:
+                    courses_in_progress += 1
+
+        overall_progress = round((completed_lessons / total_lessons * 100) if total_lessons > 0 else 0, 1)
+
         return Response(
             success_response(
-                message="Welcome Student",
-                data={"role": request.user.role}
+                message="Student Dashboard",
+                data={
+                    "role": request.user.role,
+                    "stats": {
+                        "courses_enrolled": courses_enrolled,
+                        "courses_in_progress": courses_in_progress,
+                        "courses_completed": courses_completed,
+                        "pending_requests": pending_requests,
+                        "total_lessons": total_lessons,
+                        "completed_lessons": completed_lessons,
+                        "overall_progress": overall_progress,
+                    }
+                }
             )
         )
+
 
 
 

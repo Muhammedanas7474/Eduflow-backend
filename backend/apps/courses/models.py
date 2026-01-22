@@ -13,7 +13,9 @@ class Course(models.Model):
         related_name="created_courses"
     )
     is_active = models.BooleanField(default=True)
+    is_approved = models.BooleanField(default=False)  # Requires admin approval for students to see
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.title

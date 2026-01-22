@@ -7,6 +7,7 @@ from apps.enrollments.views import (
     EnrollmentRequestViewSet,
     InstructorCourseEnrollmentsAPIView,
     AdminEnrollmentRequestReviewAPIView,
+    InstructorEnrollmentRequestReviewAPIView,
     InstructorCourseProgressAPIView,
 )
 
@@ -29,6 +30,11 @@ urlpatterns = router.urls + [
         "admin/enrollment-requests/<int:request_id>/review/",
         AdminEnrollmentRequestReviewAPIView.as_view(),
         name="admin-enrollment-request-review",
+    ),
+    path(
+        "instructor/enrollment-requests/<int:request_id>/review/",
+        InstructorEnrollmentRequestReviewAPIView.as_view(),
+        name="instructor-enrollment-request-review",
     ),
     path(
         "instructor/courses/<int:course_id>/progress/",
