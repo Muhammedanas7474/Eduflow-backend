@@ -10,10 +10,8 @@ from rest_framework.filters import OrderingFilter
 class CourseViewSet(ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["is_active"]
-    filter_backends = [DjangoFilterBackend,OrderingFilter,]
-
     ordering_fields = ["created_at", "title"]
     ordering = ["-created_at"]
 
@@ -48,15 +46,18 @@ class LessonViewSet(ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsAuthenticated(), IsAdminOrInstructor()]
+            return [IsAdminOrInstructor()]
         return super().get_permissions()
 
     def get_queryset(self):
-        return Lesson.objects.filter(
+        course_id = self.request.query_params.get("course")
+        queryset = Lesson.objects.filter(
             tenant=self.request.user.tenant,
-            course_id=self.request.query_params.get("course"),
             is_active=True
         )
+        if course_id:
+            queryset = queryset.filter(course_id=course_id)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(

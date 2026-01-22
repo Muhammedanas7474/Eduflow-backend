@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.enrollments.models import Enrollment,LessonProgress,EnrollmentRequest
-from apps.enrollments.serializers import EnrollmentCreateSerializer,LessonProgressCreateSerializer,EnrollmentRequestCreateSerializer
+from apps.enrollments.serializers import EnrollmentCreateSerializer,LessonProgressCreateSerializer,EnrollmentRequestCreateSerializer,EnrollmentRequestListSerializer
 from apps.common.permissions import IsAdmin,IsInstructor
 from apps.common.responses import success_response
 from apps.common.exceptions import AppException
@@ -190,6 +190,21 @@ class EnrollmentRequestViewSet(ModelViewSet):
 
         # Admin → see all requests
         return EnrollmentRequest.objects.filter(tenant=tenant)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return EnrollmentRequestListSerializer
+        return EnrollmentRequestCreateSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            success_response(
+                data=serializer.data,
+                message="Enrollment requests fetched successfully"
+            )
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(

@@ -108,6 +108,13 @@ class LessonProgressCreateSerializer(serializers.ModelSerializer):
         return attrs
     
 
+class EnrollmentRequestListSerializer(serializers.ModelSerializer):
+    """Serializer for listing enrollment requests with full details"""
+    class Meta:
+        model = EnrollmentRequest
+        fields = ["id", "course", "status", "requested_at"]
+
+
 class EnrollmentRequestCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = EnrollmentRequest
