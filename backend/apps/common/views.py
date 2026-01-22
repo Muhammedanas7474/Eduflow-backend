@@ -1,5 +1,6 @@
 import uuid
 import boto3
+from botocore.config import Config
 
 from django.conf import settings
 from rest_framework.views import APIView
@@ -26,6 +27,8 @@ class S3PresignUploadAPIView(APIView):
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_REGION,
+                endpoint_url=f"https://s3.{settings.AWS_REGION}.amazonaws.com",
+                config=Config(signature_version="s3v4"),
             )
 
             key = f"lessons/{uuid.uuid4()}-{file_name}"
@@ -37,7 +40,7 @@ class S3PresignUploadAPIView(APIView):
                     "Key": key,
                     "ContentType": content_type,
                 },
-                ExpiresIn=300,  # 5 minutes
+                ExpiresIn=300,
             )
 
             file_url = (
