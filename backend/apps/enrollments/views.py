@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.enrollments.models import Enrollment,LessonProgress,EnrollmentRequest
-from apps.enrollments.serializers import EnrollmentCreateSerializer,LessonProgressCreateSerializer,EnrollmentRequestCreateSerializer,EnrollmentRequestListSerializer
+from apps.enrollments.serializers import EnrollmentCreateSerializer,LessonProgressCreateSerializer,LessonProgressListSerializer,EnrollmentRequestCreateSerializer,EnrollmentRequestListSerializer
 from apps.common.permissions import IsAdmin,IsInstructor
 from apps.common.responses import success_response
 from apps.common.exceptions import AppException
@@ -11,6 +11,9 @@ from apps.courses.models import Course
 from rest_framework import status
 from django.utils import timezone
 from apps.courses.models import Lesson
+from django.db import transaction
+from apps.enrollments.tasks import enrollment_approved_task
+
 
 class EnrollmentViewSet(ModelViewSet):
     http_method_names = ["get", "post"]
@@ -124,6 +127,11 @@ class LessonProgressViewSet(ModelViewSet):
 
         return qs
 
+    def get_serializer_class(self):
+        if self.action == "list":
+            return LessonProgressListSerializer
+        return LessonProgressCreateSerializer
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(
             data=request.data,
@@ -210,14 +218,12 @@ class EnrollmentRequestViewSet(ModelViewSet):
         user = self.request.user
         tenant = user.tenant
 
-        # Student → see own requests
         if user.role == "STUDENT":
             return EnrollmentRequest.objects.filter(
                 tenant=tenant,
                 student=user
             )
 
-        # Admin → see all requests
         return EnrollmentRequest.objects.filter(tenant=tenant)
 
     def get_serializer_class(self):
@@ -253,13 +259,13 @@ class EnrollmentRequestViewSet(ModelViewSet):
                 message="Enrollment request submitted"
             )
         )
-    
+
 
 class AdminEnrollmentRequestReviewAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def post(self, request, request_id):
-        action = request.data.get("action")  
+        action = request.data.get("action")
         admin = request.user
         tenant = admin.tenant
 
@@ -269,7 +275,6 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                 status.HTTP_400_BAD_REQUEST
             )
 
-        # 1️⃣ Fetch request
         try:
             enroll_req = EnrollmentRequest.objects.get(
                 id=request_id,
@@ -281,30 +286,34 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                 status.HTTP_404_NOT_FOUND
             )
 
-        # 2️⃣ Ensure request is pending
         if enroll_req.status != "PENDING":
             raise AppException(
                 "Enrollment request already reviewed",
                 status.HTTP_400_BAD_REQUEST
             )
 
-        # 3️⃣ Process action
         enroll_req.reviewed_by = admin
         enroll_req.reviewed_at = timezone.now()
 
         if action == "approve":
-            # Create enrollment
-            Enrollment.objects.create(
-                tenant=tenant,
-                student=enroll_req.student,
-                course=enroll_req.course
-            )
-            enroll_req.status = "APPROVED"
+            with transaction.atomic():
+                enrollment = Enrollment.objects.create(
+                    tenant=tenant,
+                    student=enroll_req.student,
+                    course=enroll_req.course
+                )
+                enroll_req.status = "APPROVED"
+                enroll_req.save()
 
+                transaction.on_commit(
+                    lambda: enrollment_approved_task.delay(
+                        tenant_id=tenant.id,
+                        enrollment_id=enrollment.id
+                    )
+                )
         else:
             enroll_req.status = "REJECTED"
-
-        enroll_req.save()
+            enroll_req.save()
 
         return Response(
             success_response(
@@ -315,13 +324,9 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                 message=f"Enrollment request {enroll_req.status.lower()}"
             )
         )
-    
+
 
 class InstructorEnrollmentRequestReviewAPIView(APIView):
-    """
-    Allows instructors to approve/reject enrollment requests 
-    for courses they created.
-    """
     permission_classes = [IsAuthenticated, IsInstructor]
 
     def post(self, request, request_id):
@@ -335,7 +340,6 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
                 status.HTTP_400_BAD_REQUEST
             )
 
-        # Fetch the enrollment request
         try:
             enroll_req = EnrollmentRequest.objects.get(
                 id=request_id,
@@ -347,35 +351,40 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
                 status.HTTP_404_NOT_FOUND
             )
 
-        # Verify instructor owns the course
         if enroll_req.course.created_by != instructor:
             raise AppException(
                 "You can only review requests for your own courses",
                 status.HTTP_403_FORBIDDEN
             )
 
-        # Ensure request is pending
         if enroll_req.status != "PENDING":
             raise AppException(
                 "Enrollment request already reviewed",
                 status.HTTP_400_BAD_REQUEST
             )
 
-        # Process action
         enroll_req.reviewed_by = instructor
         enroll_req.reviewed_at = timezone.now()
 
         if action == "approve":
-            Enrollment.objects.create(
-                tenant=tenant,
-                student=enroll_req.student,
-                course=enroll_req.course
-            )
-            enroll_req.status = "APPROVED"
+            with transaction.atomic():
+                enrollment = Enrollment.objects.create(
+                    tenant=tenant,
+                    student=enroll_req.student,
+                    course=enroll_req.course
+                )
+                enroll_req.status = "APPROVED"
+                enroll_req.save()
+
+                transaction.on_commit(
+                    lambda: enrollment_approved_task.delay(
+                        tenant_id=tenant.id,
+                        enrollment_id=enrollment.id
+                    )
+                )
         else:
             enroll_req.status = "REJECTED"
-
-        enroll_req.save()
+            enroll_req.save()
 
         return Response(
             success_response(
@@ -387,7 +396,6 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
             )
         )
 
-
 class InstructorCourseProgressAPIView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 
@@ -395,7 +403,6 @@ class InstructorCourseProgressAPIView(APIView):
         instructor = request.user
         tenant = instructor.tenant
 
-        # 1️⃣ Validate course ownership
         try:
             course = Course.objects.get(
                 id=course_id,
@@ -408,13 +415,11 @@ class InstructorCourseProgressAPIView(APIView):
                 status.HTTP_404_NOT_FOUND
             )
 
-        # 2️⃣ Total enrolled students
         total_students = Enrollment.objects.filter(
             tenant=tenant,
             course=course
         ).count()
 
-        # 3️⃣ Per-lesson completion counts
         lessons = Lesson.objects.filter(
             tenant=tenant,
             course=course

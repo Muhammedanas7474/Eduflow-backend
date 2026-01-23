@@ -66,7 +66,7 @@ class RegisterSerializer(serializers.Serializer):
 class AdminCreateUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "phone_number", "role", "is_active"]
+        fields = ["id", "phone_number", "role", "is_active", "full_name", "email"]
 
     def create(self, validated_data):
         user = User.objects.create_user(
@@ -105,3 +105,33 @@ class ResetPasswordSerializer(serializers.Serializer):
     otp = serializers.CharField()
     new_password = serializers.CharField(write_only=True)
 
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profile"""
+    class Meta:
+        model = User
+        fields = ["full_name", "email"]
+    
+    def validate_email(self, value):
+        user = self.instance
+        if User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise AppException(
+                "Email already registered by another user",
+                status.HTTP_400_BAD_REQUEST
+            )
+        return value
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer for changing password"""
+    current_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=6)
+    confirm_password = serializers.CharField(write_only=True)
+    
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["confirm_password"]:
+            raise AppException(
+                "New passwords do not match",
+                status.HTTP_400_BAD_REQUEST
+            )
+        return attrs

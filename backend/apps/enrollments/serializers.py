@@ -56,6 +56,13 @@ class EnrollmentCreateSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class LessonProgressListSerializer(serializers.ModelSerializer):
+    """Serializer for listing lesson progress with completion status"""
+    class Meta:
+        model = LessonProgress
+        fields = ["id", "lesson", "is_completed", "completed_at"]
+
+
 class LessonProgressCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonProgress
@@ -110,9 +117,22 @@ class LessonProgressCreateSerializer(serializers.ModelSerializer):
 
 class EnrollmentRequestListSerializer(serializers.ModelSerializer):
     """Serializer for listing enrollment requests with full details"""
+    student = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField()
+    course_title = serializers.SerializerMethodField()
+    
     class Meta:
         model = EnrollmentRequest
-        fields = ["id", "course", "status", "requested_at"]
+        fields = ["id", "student", "student_name", "course", "course_title", "status", "requested_at"]
+    
+    def get_student(self, obj):
+        return obj.student.id if obj.student else None
+    
+    def get_student_name(self, obj):
+        return obj.student.full_name if obj.student else "Unknown"
+    
+    def get_course_title(self, obj):
+        return obj.course.title if obj.course else "Unknown"
 
 
 class EnrollmentRequestCreateSerializer(serializers.ModelSerializer):

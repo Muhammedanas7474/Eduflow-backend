@@ -21,7 +21,7 @@ from apps.accounts.serializers import (
 from apps.common.responses import success_response, error_response
 from apps.common.exceptions import AppException
 from apps.common.permissions import IsAdmin, IsInstructor, IsStudent
-from .utils import set_otp, get_otp, delete_otp
+from .utils import send_otp, get_otp, delete_otp
 from rest_framework.permissions import AllowAny
 
 
@@ -30,6 +30,7 @@ from rest_framework.permissions import AllowAny
 
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request):
         try:
             serializer = VerifyOTPSerializer(data=request.data)
@@ -39,20 +40,33 @@ class VerifyOTPView(APIView):
             otp_input = serializer.validated_data["otp"]
             purpose = serializer.validated_data["purpose"]
 
-            data = get_otp(phone, purpose)
-
-            if not data:
-                raise AppException("OTP expired or not found")
-
-            if data["otp"] != otp_input:
-                raise AppException("Invalid OTP")
-
-            delete_otp(phone, purpose)
-
+            
             user = User.objects.filter(phone_number=phone).first()
             if not user:
                 raise AppException("User not found")
 
+           
+            data = get_otp(
+                tenant_id=user.tenant_id,
+                phone=phone,
+                purpose=purpose,
+            )
+
+            if not data:
+                raise AppException("OTP expired or not found")
+
+            if str(data) != str(otp_input):
+                raise AppException("Invalid OTP")
+
+
+            
+            delete_otp(
+                tenant_id=user.tenant_id,
+                phone=phone,
+                purpose=purpose,
+            )
+
+           
             user.is_phone_verified = True
             user.is_active = True
             user.save()
@@ -65,18 +79,17 @@ class VerifyOTPView(APIView):
                     data={
                         "access": str(refresh.access_token),
                         "refresh": str(refresh),
-                        "role": user.role
+                        "role": user.role,
                     }
                 ),
-                status=200
+                status=200,
             )
 
         except AppException as e:
             return Response(
                 error_response(e.message, e.code),
-                status=e.status_code
+                status=e.status_code,
             )
-
 
 
 
@@ -116,8 +129,12 @@ class RegisterView(APIView):
             user.is_phone_verified = False
             user.save()
 
-            otp = set_otp(user.phone_number, purpose="register")
-            print(f"REGISTER OTP for {user.phone_number}: {otp}")
+            send_otp(
+                tenant_id=user.tenant_id,
+                phone=user.phone_number,
+                purpose="REGISTER",
+            )
+
 
             return Response(
                 success_response(
@@ -168,8 +185,12 @@ class LoginView(APIView):
             if not user.is_active:
                 raise AppException("Account disabled", status_code=403)
 
-            otp = set_otp(phone, purpose="login")
-            print(f"LOGIN OTP for {phone} (Tenant {tenant_id}): {otp}")
+            send_otp(
+                    tenant_id=tenant_id,
+                    phone=phone,
+                    purpose="LOGIN",
+                )
+
 
             return Response(
                 success_response(message="OTP sent for login"),
@@ -380,8 +401,12 @@ class ForgotPasswordView(APIView):
         if not user:
             raise AppException("User not found")
 
-        otp = set_otp(phone, purpose="forgot")
-        print(f"FORGOT PASSWORD OTP for {phone}: {otp}")
+        send_otp(
+            tenant_id=user.tenant_id,
+            phone=phone,
+            purpose="FORGOT_PASSWORD",
+        )
+
 
         return Response(
             success_response(message="OTP sent for password reset"),
@@ -397,7 +422,12 @@ class ResetPasswordView(APIView):
         otp_input = serializer.validated_data["otp"]
         new_password = serializer.validated_data["new_password"]
 
-        data = get_otp(phone, purpose="forgot")
+        data = get_otp(
+            tenant_id=user.tenant_id,
+            phone=phone,
+            purpose="FORGOT_PASSWORD",
+        )
+
 
         if not data:
             raise AppException("OTP expired or not found")
@@ -412,7 +442,11 @@ class ResetPasswordView(APIView):
         user.set_password(new_password)
         user.save()
 
-        delete_otp(phone, purpose="forgot")
+        delete_otp(
+            tenant_id=user.tenant_id,
+            phone=phone,
+            purpose="FORGOT_PASSWORD",
+        )
 
         return Response(
             success_response(message="Password reset successful"),
@@ -436,6 +470,63 @@ class ProfileView(APIView):
                     "is_phone_verified": user.is_phone_verified,
                     "tenant": user.tenant.name if user.tenant else None,
                 }
+            ),
+            status=status.HTTP_200_OK
+        )
+
+
+class ProfileUpdateView(APIView):
+    """Update user profile (name, email)"""
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        from apps.accounts.serializers import ProfileUpdateSerializer
+        
+        user = request.user
+        serializer = ProfileUpdateSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            success_response(
+                message="Profile updated successfully",
+                data={
+                    "full_name": user.full_name,
+                    "email": user.email,
+                    "phone_number": user.phone_number,
+                    "role": user.role,
+                }
+            ),
+            status=status.HTTP_200_OK
+        )
+
+
+class ChangePasswordView(APIView):
+    """Change user password"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.accounts.serializers import ChangePasswordSerializer
+        
+        user = request.user
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Verify current password
+        if not user.check_password(serializer.validated_data["current_password"]):
+            raise AppException(
+                "Current password is incorrect",
+                status.HTTP_400_BAD_REQUEST
+            )
+
+        # Set new password
+        user.set_password(serializer.validated_data["new_password"])
+        user.save()
+
+        return Response(
+            success_response(
+                message="Password changed successfully",
+                data={}
             ),
             status=status.HTTP_200_OK
         )

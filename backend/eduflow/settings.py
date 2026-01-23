@@ -50,13 +50,16 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'corsheaders',
+    "django_celery_beat",
+    "django_celery_results",
     
 
     'apps.accounts',
     'apps.tenants',
     'apps.common',
     'apps.courses',
-    'apps.enrollments',
+    "apps.enrollments.apps.EnrollmentsConfig",
+
 
 ]
 
@@ -206,3 +209,35 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 AWS_S3_BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME")
 AWS_REGION = os.getenv("AWS_REGION")
+
+
+# Celery Settings
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+
+# ==============================
+# REDIS CONFIG
+# ==============================
+
+REDIS_HOST = "localhost"
+REDIS_PORT = 6379
+
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    "otp-cleanup-every-5-minutes": {
+        "task": "apps.accounts.tasks.otp_cleanup_task",
+        "schedule": crontab(minute="*/5"),
+    },
+    "pending-enrollment-reminder-every-hour": {
+        "task": "apps.enrollments.tasks.pending_enrollment_reminder_task",
+        "schedule": crontab(minute=0),
+    },
+}
+

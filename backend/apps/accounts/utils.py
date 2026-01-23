@@ -1,36 +1,22 @@
-import random
-from django.core.cache import cache
+from apps.common.redis import redis_client
+from apps.accounts.tasks import send_otp_task
 
-OTP_TTL = 300  
-def generate_otp():
-    return str(random.randint(100000, 999999))
+OTP_TTL = 300
 
 
-
-OTP_TTL = 300  
-
-def set_otp(phone, purpose):
-    otp = generate_otp()
-    key = f"otp:{phone}:{purpose}"
-    value = {"otp": otp}
-
-    cache.set(key, value, timeout=OTP_TTL)
-
-    
-
-    return otp
+def send_otp(tenant_id, phone, purpose):
+    send_otp_task.delay(
+        tenant_id=tenant_id,
+        phone_number=phone,
+        purpose=purpose.upper(),
+    )
 
 
-def get_otp(phone, purpose):
-    key = f"otp:{phone}:{purpose}"
-    value = cache.get(key)
-
-    
-
-    return value
+def get_otp(tenant_id, phone, purpose):
+    key = f"otp:{tenant_id}:{phone}:{purpose.upper()}"
+    return redis_client.get(key)
 
 
-def delete_otp(phone, purpose):
-    key = f"otp:{phone}:{purpose}"
-    cache.delete(key)
-   
+def delete_otp(tenant_id, phone, purpose):
+    key = f"otp:{tenant_id}:{phone}:{purpose.upper()}"
+    redis_client.delete(key)
