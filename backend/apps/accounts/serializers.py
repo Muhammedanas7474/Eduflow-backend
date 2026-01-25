@@ -10,7 +10,7 @@ class VerifyOTPSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
     otp = serializers.CharField()
     purpose = serializers.ChoiceField(
-        choices=["login", "register", "forgot"]
+        choices=["LOGIN", "REGISTER", "FORGOT_PASSWORD"]
     )
 
 

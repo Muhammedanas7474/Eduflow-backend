@@ -34,7 +34,7 @@ SECRET_KEY = 'django-insecure-^h&un#+dnm+3*w#1k!dz3asy5wlev($m(%gelf^$*wn3^wg9*5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # Allow all hosts for development
 
 
 # Application definition
@@ -241,3 +241,14 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+
+
+import ssl
+
+CELERY_BROKER_USE_SSL = {
+    "ssl_cert_reqs": ssl.CERT_NONE,
+}
+
+CELERY_REDIS_BACKEND_USE_SSL = {
+    "ssl_cert_reqs": ssl.CERT_NONE,
+}
