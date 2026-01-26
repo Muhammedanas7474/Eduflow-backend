@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListCreateAPIView, UpdateAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import ValidationError
 
 from drf_yasg.utils import swagger_auto_schema
 
@@ -34,7 +35,9 @@ class VerifyOTPView(APIView):
     def post(self, request):
         try:
             serializer = VerifyOTPSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+            if not serializer.is_valid():
+                print("VALIDATION ERROR:", serializer.errors)
+                raise ValidationError(serializer.errors)
 
             phone = serializer.validated_data["phone_number"]
             otp_input = serializer.validated_data["otp"]
@@ -89,6 +92,11 @@ class VerifyOTPView(APIView):
             return Response(
                 error_response(e.message, e.code),
                 status=e.status_code,
+            )
+        except ValidationError as e:
+            return Response(
+                error_response(message=e.detail, code="VALIDATION_ERROR"),
+                status=status.HTTP_400_BAD_REQUEST
             )
 
 
@@ -422,6 +430,10 @@ class ResetPasswordView(APIView):
         otp_input = serializer.validated_data["otp"]
         new_password = serializer.validated_data["new_password"]
 
+        user = User.objects.filter(phone_number=phone).first()
+        if not user:
+            raise AppException("User not found")
+
         data = get_otp(
             tenant_id=user.tenant_id,
             phone=phone,
@@ -434,10 +446,6 @@ class ResetPasswordView(APIView):
 
         if data["otp"] != otp_input:
             raise AppException("Invalid OTP")
-
-        user = User.objects.filter(phone_number=phone).first()
-        if not user:
-            raise AppException("User not found")
 
         user.set_password(new_password)
         user.save()

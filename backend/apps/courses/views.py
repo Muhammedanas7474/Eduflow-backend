@@ -20,7 +20,7 @@ class CourseViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Course.objects.filter(tenant=user.tenant)
+        queryset = Course.objects.select_related("tenant", "created_by").filter(tenant=user.tenant)
         
         if user.role == "ADMIN":
             # Admin sees all courses
@@ -94,7 +94,7 @@ class LessonViewSet(ModelViewSet):
 
     def get_queryset(self):
         course_id = self.request.query_params.get("course")
-        queryset = Lesson.objects.filter(
+        queryset = Lesson.objects.select_related("course", "created_by").filter(
             tenant=self.request.user.tenant,
             is_active=True
         )
@@ -107,4 +107,6 @@ class LessonViewSet(ModelViewSet):
             tenant=self.request.user.tenant,
             created_by=self.request.user
         )
+
+
 

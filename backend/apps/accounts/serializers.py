@@ -9,9 +9,13 @@ class SendOTPSerializer(serializers.Serializer):
 class VerifyOTPSerializer(serializers.Serializer):
     phone_number = serializers.CharField()
     otp = serializers.CharField()
-    purpose = serializers.ChoiceField(
-        choices=["LOGIN", "REGISTER", "FORGOT_PASSWORD"]
-    )
+    purpose = serializers.CharField()
+
+    def validate_purpose(self, value):
+        value = value.upper()
+        if value not in ["LOGIN", "REGISTER", "FORGOT_PASSWORD"]:
+            raise serializers.ValidationError("Invalid purpose")
+        return value
 
 
 
