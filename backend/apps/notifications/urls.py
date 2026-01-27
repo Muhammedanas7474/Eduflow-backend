@@ -1,10 +1,10 @@
-from django.urls import path
 from apps.notifications.views import (
-    NotificationListAPIView,
-    MarkNotificationReadAPIView,
     MarkAllNotificationsReadAPIView,
+    MarkNotificationReadAPIView,
+    NotificationListAPIView,
     UnreadNotificationCountAPIView,
 )
+from django.urls import path
 
 urlpatterns = [
     path("", NotificationListAPIView.as_view()),

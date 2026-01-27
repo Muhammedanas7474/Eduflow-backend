@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('courses', '0002_lesson'),
+        ("courses", "0002_lesson"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='course',
-            name='is_approved',
+            model_name="course",
+            name="is_approved",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='course',
-            name='updated_at',
+            model_name="course",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

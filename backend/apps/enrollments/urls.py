@@ -1,23 +1,20 @@
+from apps.enrollments.views import (
+    AdminEnrollmentRequestReviewAPIView,
+    EnrollmentRequestViewSet,
+    EnrollmentViewSet,
+    InstructorCourseEnrollmentsAPIView,
+    InstructorCourseProgressAPIView,
+    InstructorEnrollmentRequestReviewAPIView,
+    LessonProgressViewSet,
+)
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from apps.enrollments.views import (
-    EnrollmentViewSet,
-    LessonProgressViewSet,
-    EnrollmentRequestViewSet,
-    InstructorCourseEnrollmentsAPIView,
-    AdminEnrollmentRequestReviewAPIView,
-    InstructorEnrollmentRequestReviewAPIView,
-    InstructorCourseProgressAPIView,
-)
-
 router = DefaultRouter()
-router.register(r'enrollments', EnrollmentViewSet, basename='enrollments')
-router.register(r'lesson-progress', LessonProgressViewSet, basename='lesson-progress')
+router.register(r"enrollments", EnrollmentViewSet, basename="enrollments")
+router.register(r"lesson-progress", LessonProgressViewSet, basename="lesson-progress")
 router.register(
-    r'enrollment-requests',
-    EnrollmentRequestViewSet,
-    basename='enrollment-requests'
+    r"enrollment-requests", EnrollmentRequestViewSet, basename="enrollment-requests"
 )
 
 urlpatterns = router.urls + [

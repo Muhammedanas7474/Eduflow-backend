@@ -1,13 +1,14 @@
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Course, Lesson
-from .serializers import CourseSerializer, CourseListSerializer, LessonSerializer
-from .permissions import IsAdminOrInstructor
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+
+from .models import Course, Lesson
+from .permissions import IsAdminOrInstructor
+from .serializers import CourseListSerializer, CourseSerializer, LessonSerializer
 
 
 class CourseViewSet(ModelViewSet):
@@ -20,8 +21,10 @@ class CourseViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Course.objects.select_related("tenant", "created_by").filter(tenant=user.tenant)
-        
+        queryset = Course.objects.select_related("tenant", "created_by").filter(
+            tenant=user.tenant
+        )
+
         if user.role == "ADMIN":
             # Admin sees all courses
             return queryset
@@ -38,10 +41,7 @@ class CourseViewSet(ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        serializer.save(
-            tenant=self.request.user.tenant,
-            created_by=self.request.user
-        )
+        serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -54,16 +54,18 @@ class CourseViewSet(ModelViewSet):
         if request.user.role != "ADMIN":
             return Response(
                 {"detail": "Only admins can approve courses."},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
         course = self.get_object()
         course.is_approved = True
         course.save()
-        return Response({
-            "detail": "Course approved successfully.",
-            "is_approved": True,
-            "id": course.id
-        })
+        return Response(
+            {
+                "detail": "Course approved successfully.",
+                "is_approved": True,
+                "id": course.id,
+            }
+        )
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def reject(self, request, pk=None):
@@ -71,16 +73,14 @@ class CourseViewSet(ModelViewSet):
         if request.user.role != "ADMIN":
             return Response(
                 {"detail": "Only admins can reject courses."},
-                status=status.HTTP_403_FORBIDDEN
+                status=status.HTTP_403_FORBIDDEN,
             )
         course = self.get_object()
         course.is_approved = False
         course.save()
-        return Response({
-            "detail": "Course rejected.",
-            "is_approved": False,
-            "id": course.id
-        })
+        return Response(
+            {"detail": "Course rejected.", "is_approved": False, "id": course.id}
+        )
 
 
 class LessonViewSet(ModelViewSet):
@@ -95,18 +95,11 @@ class LessonViewSet(ModelViewSet):
     def get_queryset(self):
         course_id = self.request.query_params.get("course")
         queryset = Lesson.objects.select_related("course", "created_by").filter(
-            tenant=self.request.user.tenant,
-            is_active=True
+            tenant=self.request.user.tenant, is_active=True
         )
         if course_id:
             queryset = queryset.filter(course_id=course_id)
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(
-            tenant=self.request.user.tenant,
-            created_by=self.request.user
-        )
-
-
-
+        serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)

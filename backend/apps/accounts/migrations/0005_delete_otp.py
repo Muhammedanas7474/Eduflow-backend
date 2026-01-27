@@ -6,11 +6,11 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0004_user_email_user_full_name'),
+        ("accounts", "0004_user_email_user_full_name"),
     ]
 
     operations = [
         migrations.DeleteModel(
-            name='OTP',
+            name="OTP",
         ),
     ]

@@ -1,12 +1,12 @@
 from apps.tenants.models import Tenant
 from django.contrib.auth.base_user import BaseUserManager
 
+
 class UserManager(BaseUserManager):
     def create_user(self, phone_number, tenant, password=None):
         if not phone_number:
             raise ValueError("Phone number is required")
 
-        
         if isinstance(tenant, int):
             tenant = Tenant.objects.get(id=tenant)
 

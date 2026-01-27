@@ -1,10 +1,9 @@
-from celery import shared_task
 import random
 
-from django.conf import settings
-from apps.common.redis import redis_client  
+from apps.common.redis import redis_client
+from celery import shared_task
 
-OTP_EXPIRY_SECONDS = 300  
+OTP_EXPIRY_SECONDS = 300
 
 
 @shared_task(

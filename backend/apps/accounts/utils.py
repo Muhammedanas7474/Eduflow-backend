@@ -1,5 +1,5 @@
-from apps.common.redis import redis_client
 from apps.accounts.tasks import send_otp_task
+from apps.common.redis import redis_client
 
 OTP_TTL = 300
 
