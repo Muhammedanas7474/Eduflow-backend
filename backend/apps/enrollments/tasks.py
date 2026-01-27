@@ -1,10 +1,12 @@
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta
-from apps.enrollments.models import EnrollmentRequest
-from apps.accounts.models import User
-from apps.courses.models import Course
-from apps.enrollments.models import Enrollment
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+from apps.enrollments.models import EnrollmentRequest, Enrollment
+from apps.notifications.models import Notification
 
 
 @shared_task(
@@ -30,14 +32,39 @@ def enrollment_approved_task(self, tenant_id, enrollment_id):
     student = enrollment.student
     course = enrollment.course
 
-    # 🔔 Student notification (placeholder)
+    # ===============================
+    # 🔔 STUDENT NOTIFICATION (DB)
+    # ===============================
+    notification = Notification.objects.create(
+        tenant_id=tenant_id,
+        user=student,
+        type="ENROLLMENT_APPROVED",
+        message=f"You are enrolled in {course.title}",
+    )
+
+    # ===============================
+    # 🔴 REALTIME PUSH (WebSocket)
+    # ===============================
+    channel_layer = get_channel_layer()
+
+    async_to_sync(channel_layer.group_send)(
+        f"user_{student.id}",
+        {
+            "type": "notify",
+            "message": notification.message,
+            "created_at": notification.created_at.isoformat(),
+        }
+    )
+
+    # ===============================
+    # 🔔 EXISTING LOGS (UNCHANGED)
+    # ===============================
     print(
         f"[ENROLLMENT APPROVED] "
         f"Student={student.phone_number} "
         f"Course={course.title}"
     )
 
-    # 🔔 Instructor notification (placeholder)
     if course.created_by:
         print(
             f"[INSTRUCTOR NOTIFY] "
@@ -45,7 +72,6 @@ def enrollment_approved_task(self, tenant_id, enrollment_id):
             f"Student={student.phone_number}"
         )
 
-    # 📊 Analytics / audit hook
     print(
         f"[ANALYTICS] "
         f"tenant={tenant_id} "

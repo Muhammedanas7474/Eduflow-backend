@@ -5,7 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import ListCreateAPIView, UpdateAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import ValidationError
-
+from apps.courses.models import Course
+from apps.enrollments.models import Enrollment, EnrollmentRequest
+from django.utils import timezone
+from datetime import timedelta
 from drf_yasg.utils import swagger_auto_schema
 
 from apps.accounts.models import User
@@ -216,10 +219,7 @@ class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
-        from apps.courses.models import Course
-        from apps.enrollments.models import Enrollment, EnrollmentRequest
-        from django.utils import timezone
-        from datetime import timedelta
+        
 
         tenant = request.user.tenant
         now = timezone.now()

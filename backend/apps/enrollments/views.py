@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.courses.models import Lesson
 from django.db import transaction
 from apps.enrollments.tasks import enrollment_approved_task
+from apps.notifications.services import create_notification
 
 
 class EnrollmentViewSet(ModelViewSet):
@@ -172,7 +173,7 @@ class InstructorCourseEnrollmentsAPIView(APIView):
         instructor = request.user
         tenant = instructor.tenant
 
-        # 1️⃣ Validate course ownership
+        # Validate course ownership
         try:
             course = Course.objects.get(
                 id=course_id,
@@ -185,7 +186,7 @@ class InstructorCourseEnrollmentsAPIView(APIView):
                 status.HTTP_404_NOT_FOUND
             )
 
-        # 2️⃣ Fetch enrollments
+        #  Fetch enrollments
         enrollments = Enrollment.objects.filter(
             tenant=tenant,
             course=course
@@ -302,15 +303,22 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                     student=enroll_req.student,
                     course=enroll_req.course
                 )
+
                 enroll_req.status = "APPROVED"
                 enroll_req.save()
 
-                transaction.on_commit(
-                    lambda: enrollment_approved_task.delay(
+                transaction.on_commit(lambda: (
+                    enrollment_approved_task.delay(
                         tenant_id=tenant.id,
                         enrollment_id=enrollment.id
+                    ),
+                    create_notification(
+                        tenant=tenant,
+                        user=enroll_req.student,
+                        type="ENROLLMENT_APPROVED",
+                        message=f"You have been approved for {enroll_req.course.title}"
                     )
-                )
+                ))
         else:
             enroll_req.status = "REJECTED"
             enroll_req.save()
@@ -324,7 +332,6 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                 message=f"Enrollment request {enroll_req.status.lower()}"
             )
         )
-
 
 class InstructorEnrollmentRequestReviewAPIView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
@@ -373,15 +380,22 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
                     student=enroll_req.student,
                     course=enroll_req.course
                 )
+
                 enroll_req.status = "APPROVED"
                 enroll_req.save()
 
-                transaction.on_commit(
-                    lambda: enrollment_approved_task.delay(
+                transaction.on_commit(lambda: (
+                    enrollment_approved_task.delay(
                         tenant_id=tenant.id,
                         enrollment_id=enrollment.id
+                    ),
+                    create_notification(
+                        tenant=tenant,
+                        user=enroll_req.student,
+                        type="ENROLLMENT_APPROVED",
+                        message=f"You have been approved for {enroll_req.course.title}"
                     )
-                )
+                ))
         else:
             enroll_req.status = "REJECTED"
             enroll_req.save()
@@ -395,7 +409,6 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
                 message=f"Enrollment request {enroll_req.status.lower()}"
             )
         )
-
 class InstructorCourseProgressAPIView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 

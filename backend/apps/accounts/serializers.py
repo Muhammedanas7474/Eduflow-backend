@@ -27,11 +27,6 @@ class LoginSerializer(serializers.Serializer):
 
 
 
-
-from rest_framework import serializers
-from .models import User
-
-
 class RegisterSerializer(serializers.Serializer):
     tenant_id = serializers.IntegerField()
     full_name = serializers.CharField()

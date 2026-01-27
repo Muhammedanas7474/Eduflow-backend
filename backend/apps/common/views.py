@@ -6,7 +6,6 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
 from apps.common.responses import success_response
 from apps.common.exceptions import AppException
 

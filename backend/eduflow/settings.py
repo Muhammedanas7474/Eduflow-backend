@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'corsheaders',
     "django_celery_beat",
     "django_celery_results",
+    "channels",
     
 
     'apps.accounts',
@@ -59,6 +60,7 @@ INSTALLED_APPS = [
     'apps.common',
     'apps.courses',
     "apps.enrollments.apps.EnrollmentsConfig",
+    "apps.notifications",
 
 
 ]
@@ -92,6 +94,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'eduflow.wsgi.application'
+ASGI_APPLICATION = "eduflow.asgi.application"
 
 
 # Database
@@ -119,7 +122,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 5,
+    'PAGE_SIZE': 20,
     'EXCEPTION_HANDLER': 'apps.common.exception_handler.custom_exception_handler',
     
 }
@@ -149,7 +152,7 @@ CACHES = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=45),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
