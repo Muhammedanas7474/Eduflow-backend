@@ -43,6 +43,7 @@ ALLOWED_HOSTS = ["*"]  # Allow all hosts for development
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -93,6 +94,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "eduflow.wsgi.application"
 ASGI_APPLICATION = "eduflow.asgi.application"
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.getenv("REDIS_URL", "redis://localhost:6379/1")],
+        },
+    },
+}
 
 
 # Database

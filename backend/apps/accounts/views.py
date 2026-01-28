@@ -4,8 +4,10 @@ from apps.accounts.models import User
 from apps.accounts.serializers import (
     AdminCreateUserSerializer,
     AdminUpdateUserStatusSerializer,
+    ChangePasswordSerializer,
     ForgotPasswordSerializer,
     LoginSerializer,
+    ProfileUpdateSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
     VerifyOTPSerializer,
@@ -17,6 +19,7 @@ from apps.courses.models import Course
 from apps.enrollments.models import Enrollment, EnrollmentRequest
 from apps.tenants.models import Tenant
 from django.utils import timezone
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -32,6 +35,24 @@ from .utils import delete_otp, get_otp, send_otp
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        request_body=VerifyOTPSerializer,
+        responses={
+            200: openapi.Response(
+                "OTP verified successfully",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "access": openapi.Schema(type=openapi.TYPE_STRING),
+                        "refresh": openapi.Schema(type=openapi.TYPE_STRING),
+                        "role": openapi.Schema(type=openapi.TYPE_STRING),
+                    },
+                ),
+            ),
+            400: "Validation Error",
+            404: "User not found",
+        },
+    )
     def post(self, request):
         try:
             serializer = VerifyOTPSerializer(data=request.data)
@@ -98,6 +119,13 @@ class VerifyOTPView(APIView):
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        request_body=RegisterSerializer,
+        responses={
+            201: "Registration successful. OTP sent.",
+            409: "User already exists",
+        },
+    )
     def post(self, request):
 
         try:
@@ -144,7 +172,15 @@ class RegisterView(APIView):
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
-    @swagger_auto_schema(request_body=LoginSerializer)
+    @swagger_auto_schema(
+        request_body=LoginSerializer,
+        responses={
+            200: "OTP sent for login",
+            401: "Invalid credentials",
+            403: "Account disabled",
+            404: "User not found",
+        },
+    )
     def post(self, request):
 
         try:
@@ -185,6 +221,7 @@ class LoginView(APIView):
 class AdminDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
+    @swagger_auto_schema(responses={200: "Admin dashboard stats"})
     def get(self, request):
 
         tenant = request.user.tenant
@@ -230,6 +267,7 @@ class AdminDashboardView(APIView):
 class InstructorDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 
+    @swagger_auto_schema(responses={200: "Instructor dashboard stats"})
     def get(self, request):
         from apps.courses.models import Course, Lesson
         from apps.enrollments.models import (
@@ -301,6 +339,7 @@ class InstructorDashboardView(APIView):
 class StudentDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
+    @swagger_auto_schema(responses={200: "Student dashboard stats"})
     def get(self, request):
         from apps.courses.models import Lesson
         from apps.enrollments.models import (
@@ -387,6 +426,7 @@ class AdminUserStatusUpdateView(UpdateAPIView):
 
 
 class ForgotPasswordView(APIView):
+    @swagger_auto_schema(request_body=ForgotPasswordSerializer)
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -410,6 +450,7 @@ class ForgotPasswordView(APIView):
 
 
 class ResetPasswordView(APIView):
+    @swagger_auto_schema(request_body=ResetPasswordSerializer)
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -452,6 +493,7 @@ class ResetPasswordView(APIView):
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: "User profile details"})
     def get(self, request):
         user = request.user
 
@@ -476,9 +518,11 @@ class ProfileUpdateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=ProfileUpdateSerializer,
+        responses={200: "Profile updated successfully"},
+    )
     def put(self, request):
-        from apps.accounts.serializers import ProfileUpdateSerializer
-
         user = request.user
         serializer = ProfileUpdateSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -503,9 +547,11 @@ class ChangePasswordView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        request_body=ChangePasswordSerializer,
+        responses={200: "Password changed successfully", 400: "Invalid password"},
+    )
     def post(self, request):
-        from apps.accounts.serializers import ChangePasswordSerializer
-
         user = request.user
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

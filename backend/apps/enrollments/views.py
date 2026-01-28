@@ -14,6 +14,8 @@ from apps.enrollments.tasks import enrollment_approved_task
 from apps.notifications.services import create_notification
 from django.db import transaction
 from django.utils import timezone
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -168,6 +170,7 @@ class LessonProgressViewSet(ModelViewSet):
 class InstructorCourseEnrollmentsAPIView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 
+    @swagger_auto_schema(responses={200: "List of students enrolled"})
     def get(self, request, course_id):
         instructor = request.user
         tenant = instructor.tenant
@@ -239,6 +242,15 @@ class EnrollmentRequestViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         req = serializer.save()
 
+        # Notify Course Instructor
+        if req.course.created_by:
+            create_notification(
+                tenant=req.tenant,
+                user=req.course.created_by,
+                type="ENROLLMENT",
+                message=f"New enrollment request for '{req.course.title}' from {req.student.email}",
+            )
+
         return Response(
             success_response(
                 data={"id": req.id, "course": req.course.id, "status": req.status},
@@ -250,6 +262,18 @@ class EnrollmentRequestViewSet(ModelViewSet):
 class AdminEnrollmentRequestReviewAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["action"],
+            properties={
+                "action": openapi.Schema(
+                    type=openapi.TYPE_STRING, enum=["approve", "reject"]
+                ),
+            },
+        ),
+        responses={200: "Enrollment request reviewed", 400: "Invalid action or state"},
+    )
     def post(self, request, request_id):
         action = request.data.get("action")
         admin = request.user
@@ -285,16 +309,8 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                 enroll_req.save()
 
                 transaction.on_commit(
-                    lambda: (
-                        enrollment_approved_task.delay(
-                            tenant_id=tenant.id, enrollment_id=enrollment.id
-                        ),
-                        create_notification(
-                            tenant=tenant,
-                            user=enroll_req.student,
-                            type="ENROLLMENT_APPROVED",
-                            message=f"You have been approved for {enroll_req.course.title}",
-                        ),
+                    lambda: enrollment_approved_task.delay(
+                        tenant_id=tenant.id, enrollment_id=enrollment.id
                     )
                 )
         else:
@@ -312,6 +328,18 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
 class InstructorEnrollmentRequestReviewAPIView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["action"],
+            properties={
+                "action": openapi.Schema(
+                    type=openapi.TYPE_STRING, enum=["approve", "reject"]
+                ),
+            },
+        ),
+        responses={200: "Enrollment request reviewed", 400: "Invalid action or state"},
+    )
     def post(self, request, request_id):
         action = request.data.get("action")
         instructor = request.user
@@ -353,16 +381,8 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
                 enroll_req.save()
 
                 transaction.on_commit(
-                    lambda: (
-                        enrollment_approved_task.delay(
-                            tenant_id=tenant.id, enrollment_id=enrollment.id
-                        ),
-                        create_notification(
-                            tenant=tenant,
-                            user=enroll_req.student,
-                            type="ENROLLMENT_APPROVED",
-                            message=f"You have been approved for {enroll_req.course.title}",
-                        ),
+                    lambda: enrollment_approved_task.delay(
+                        tenant_id=tenant.id, enrollment_id=enrollment.id
                     )
                 )
         else:
@@ -380,6 +400,7 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
 class InstructorCourseProgressAPIView(APIView):
     permission_classes = [IsAuthenticated, IsInstructor]
 
+    @swagger_auto_schema(responses={200: "Detailed course progress stats"})
     def get(self, request, course_id):
         instructor = request.user
         tenant = instructor.tenant

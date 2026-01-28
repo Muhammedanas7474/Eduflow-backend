@@ -1,6 +1,7 @@
 from apps.common.responses import success_response
 from apps.notifications.models import Notification
 from apps.notifications.serializers import NotificationSerializer
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,6 +10,7 @@ from rest_framework.views import APIView
 class NotificationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: NotificationSerializer(many=True)})
     def get(self, request):
         notifications = Notification.objects.filter(
             tenant=request.user.tenant, user=request.user
@@ -24,6 +26,7 @@ class NotificationListAPIView(APIView):
 class MarkNotificationReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: "Notification marked as read"})
     def post(self, request, notification_id):
         notification = Notification.objects.filter(
             id=notification_id, tenant=request.user.tenant, user=request.user
@@ -39,6 +42,7 @@ class MarkNotificationReadAPIView(APIView):
 class MarkAllNotificationsReadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: "All notifications marked as read"})
     def post(self, request):
         Notification.objects.filter(
             tenant=request.user.tenant, user=request.user, is_read=False
@@ -50,6 +54,7 @@ class MarkAllNotificationsReadAPIView(APIView):
 class UnreadNotificationCountAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(responses={200: "Unread notifications count"})
     def get(self, request):
         count = Notification.objects.filter(
             tenant=request.user.tenant, user=request.user, is_read=False

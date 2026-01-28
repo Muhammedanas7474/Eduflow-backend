@@ -1,4 +1,5 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
@@ -48,6 +49,13 @@ class CourseViewSet(ModelViewSet):
             return CourseListSerializer
         return CourseSerializer
 
+    @swagger_auto_schema(
+        method="post",
+        responses={
+            200: "Course approved successfully.",
+            403: "Only admins can approve courses.",
+        },
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):
         """Admin-only endpoint to approve a course"""
@@ -67,6 +75,10 @@ class CourseViewSet(ModelViewSet):
             }
         )
 
+    @swagger_auto_schema(
+        method="post",
+        responses={200: "Course rejected.", 403: "Only admins can reject courses."},
+    )
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def reject(self, request, pk=None):
         """Admin-only endpoint to reject/unapprove a course"""

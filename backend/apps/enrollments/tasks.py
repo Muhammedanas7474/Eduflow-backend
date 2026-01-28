@@ -1,10 +1,7 @@
 from datetime import timedelta
 
 from apps.enrollments.models import Enrollment, EnrollmentRequest
-from apps.notifications.models import Notification
-from asgiref.sync import async_to_sync
 from celery import shared_task
-from channels.layers import get_channel_layer
 from django.utils import timezone
 
 
@@ -34,27 +31,15 @@ def enrollment_approved_task(self, tenant_id, enrollment_id):
     course = enrollment.course
 
     # ===============================
-    # 🔔 STUDENT NOTIFICATION (DB)
+    # 🔔 STUDENT NOTIFICATION (DB + WS)
     # ===============================
-    notification = Notification.objects.create(
-        tenant_id=tenant_id,
+    from apps.notifications.services import create_notification
+
+    create_notification(
+        tenant=enrollment.tenant,
         user=student,
         type="ENROLLMENT_APPROVED",
         message=f"You are enrolled in {course.title}",
-    )
-
-    # ===============================
-    # 🔴 REALTIME PUSH (WebSocket)
-    # ===============================
-    channel_layer = get_channel_layer()
-
-    async_to_sync(channel_layer.group_send)(
-        f"user_{student.id}",
-        {
-            "type": "notify",
-            "message": notification.message,
-            "created_at": notification.created_at.isoformat(),
-        },
     )
 
     # ===============================
