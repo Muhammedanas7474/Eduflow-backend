@@ -1,6 +1,6 @@
-from apps.accounts.models import User
 from apps.courses.models import Course, Lesson
 from apps.tenants.models import Tenant
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -10,7 +10,9 @@ class Enrollment(models.Model):
         Tenant, on_delete=models.CASCADE, related_name="enrollments"
     )
     student = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="enrollments"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="enrollments",
     )
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name="enrollments"
@@ -30,7 +32,9 @@ class Enrollment(models.Model):
 class LessonProgress(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     student = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="lesson_progress"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="lesson_progress",
     )
     lesson = models.ForeignKey(
         Lesson, on_delete=models.CASCADE, related_name="progress"
@@ -60,7 +64,9 @@ class EnrollmentRequest(models.Model):
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     student = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="enrollment_requests"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="enrollment_requests",
     )
     course = models.ForeignKey(
         Course, on_delete=models.CASCADE, related_name="enrollment_requests"
@@ -71,7 +77,7 @@ class EnrollmentRequest(models.Model):
     requested_at = models.DateTimeField(default=timezone.now)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

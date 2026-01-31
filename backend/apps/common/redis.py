@@ -1,13 +1,18 @@
 # apps/common/redis.py
 import os
 
-import redis
+try:
+    import redis
+except ImportError:
+    redis = None
 
 REDIS_URL = os.environ.get("REDIS_URL")
 
-if not REDIS_URL:
-    raise RuntimeError("REDIS_URL not set")
+redis_client = None
 
-redis_client = redis.Redis.from_url(
-    REDIS_URL, decode_responses=True, ssl_cert_reqs=None  # REQUIRED for Upstash
-)
+if REDIS_URL and redis:
+    redis_client = redis.Redis.from_url(
+        REDIS_URL,
+        decode_responses=True,
+        ssl_cert_reqs=None,
+    )

@@ -3,18 +3,20 @@ from apps.accounts.views import (
     AdminUserListCreateView,
     AdminUserStatusUpdateView,
     ChangePasswordView,
+    CookieTokenRefreshView,
     ForgotPasswordView,
     InstructorDashboardView,
     LoginView,
+    LogoutView,
     ProfileUpdateView,
     ProfileView,
     RegisterView,
     ResetPasswordView,
     StudentDashboardView,
     VerifyOTPView,
+    WebSocketTokenView,
 )
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path("verify-otp/", VerifyOTPView.as_view()),
@@ -25,7 +27,9 @@ urlpatterns = [
     path("profile/", ProfileView.as_view(), name="profile"),
     path("profile/update/", ProfileUpdateView.as_view(), name="profile-update"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/refresh/", CookieTokenRefreshView.as_view(), name="token_refresh"),
+    path("logout/", LogoutView.as_view(), name="logout"),
+    path("ws-token/", WebSocketTokenView.as_view(), name="ws-token"),
     path("admin/dashboard/", AdminDashboardView.as_view()),
     path("instructor/dashboard/", InstructorDashboardView.as_view()),
     path("student/dashboard/", StudentDashboardView.as_view()),

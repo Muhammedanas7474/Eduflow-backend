@@ -1,11 +1,8 @@
-
 services:
-  web:
+  backend:
     build: .
     container_name: eduflow_web
-    command: python manage.py runserver 0.0.0.0:8000
-    ports:
-      - "8000:8000"
+    command: daphne -b 0.0.0.0 -p 8000 eduflow.asgi:application
     env_file:
       - .env
     environment:
@@ -13,7 +10,18 @@ services:
     volumes:
       - .:/app
     depends_on:
-      - celery_worker
+      - redis
+
+  realtime:
+    build: ../realtime
+    container_name: eduflow_realtime
+    command: daphne -b 0.0.0.0 -p 8001 realtime_service.asgi:application
+    env_file:
+      - .env
+    volumes:
+      - ../realtime:/app
+    depends_on:
+      - redis
 
   celery_worker:
     build: .
@@ -25,6 +33,8 @@ services:
       - DJANGO_SETTINGS_MODULE=eduflow.settings
     volumes:
       - .:/app
+    depends_on:
+      - redis
 
   celery_beat:
     build: .
@@ -37,4 +47,17 @@ services:
     volumes:
       - .:/app
     depends_on:
-      - celery_worker
+      - redis
+
+  nginx:
+    build: ../nginx
+    container_name: eduflow_nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - realtime
+
+  redis:
+    image: redis:7-alpine
+    container_name: eduflow_redis

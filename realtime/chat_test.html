@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduFlow Chat Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card h2 {
+            color: #00ff88;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 1rem;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757 0%, #cc3a47 100%);
+            color: #fff;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        
+        .status {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+        
+        .status.connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+        
+        .status.disconnected {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+        
+        .status::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background: currentColor;
+        }
+        
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .message.system {
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            font-style: italic;
+        }
+        
+        .message .meta {
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .input-row input {
+            flex: 1;
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        .instructions code {
+            background: rgba(0, 255, 136, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #00ff88;
+        }
+        
+        .instructions ol {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 EduFlow Chat Test</h1>
+        
+        <div class="card">
+            <h2>📝 Instructions</h2>
+            <div class="instructions">
+                <ol>
+                    <li>Login to the EduFlow frontend at <code>http://localhost:5173</code></li>
+                    <li>Open DevTools → Application → Cookies → <code>access_token</code></li>
+                    <li>Copy the token value and paste it below</li>
+                    <li>Enter a room name (e.g., "general")</li>
+                    <li>Click Connect</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🔐 Connection Settings</h2>
+            <div class="form-group">
+                <label>JWT Token (from cookie)</label>
+                <textarea id="token" rows="3" placeholder="Paste your access_token here..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Room Name</label>
+                <input type="text" id="room" value="general" placeholder="Room name">
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-primary" onclick="connect()">Connect</button>
+                <button class="btn-danger" onclick="disconnect()">Disconnect</button>
+                <button class="btn-secondary" onclick="testNoAuth()">Test Without Auth</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>💬 Chat</h2>
+            <div id="status" class="status disconnected">Disconnected</div>
+            <div id="messages"></div>
+            <div class="input-row">
+                <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+                <button class="btn-primary" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let ws = null;
+        
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            status.className = 'status ' + (connected ? 'connected' : 'disconnected');
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+        
+        function addMessage(text, isSystem = false) {
+            const messages = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message' + (isSystem ? ' system' : '');
+            div.textContent = text;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        function addChatMessage(userName, message, userId) {
+            const messages = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `<div class="meta">${userName} (ID: ${userId})</div>${message}`;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        function connect() {
+            const token = document.getElementById('token').value.trim();
+            const room = document.getElementById('room').value.trim() || 'general';
+            
+            if (!token) {
+                addMessage('⚠️ Please enter a JWT token', true);
+                return;
+            }
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            const url = `ws://localhost/ws/chat/${room}/?token=${token}`;
+            addMessage(`🔄 Connecting to ${room}...`, true);
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = () => {
+                updateStatus(true);
+                addMessage('✅ Connected!', true);
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'connected') {
+                        addMessage(`🎉 ${data.message} (Room: ${data.room})`, true);
+                    } else if (data.type === 'message') {
+                        addChatMessage(data.user_name, data.message, data.user_id);
+                    } else {
+                        addMessage(`📩 ${JSON.stringify(data)}`, true);
+                    }
+                } catch (e) {
+                    addMessage(`📩 ${event.data}`, true);
+                }
+            };
+            
+            ws.onerror = () => {
+                addMessage('❌ Connection error', true);
+            };
+            
+            ws.onclose = (event) => {
+                updateStatus(false);
+                addMessage(`🔒 Disconnected (Code: ${event.code})`, true);
+                if (event.code === 4001) {
+                    addMessage('⚠️ Authentication failed - check your token', true);
+                }
+                ws = null;
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function testNoAuth() {
+            const room = document.getElementById('room').value.trim() || 'general';
+            
+            if (ws) {
+                ws.close();
+            }
+            
+            const url = `ws://localhost/ws/chat/${room}/`;
+            addMessage(`🔄 Testing connection without auth...`, true);
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = () => {
+                updateStatus(true);
+                addMessage('❌ ERROR: Connected without auth - security issue!', true);
+            };
+            
+            ws.onerror = () => {
+                addMessage('✅ Connection rejected (as expected)', true);
+            };
+            
+            ws.onclose = (event) => {
+                updateStatus(false);
+                addMessage(`✅ Auth rejection confirmed (Code: ${event.code})`, true);
+                ws = null;
+            };
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+            
+            ws.send(JSON.stringify({ message: message }));
+            input.value = '';
+        }
+        
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+        
+        // Add initial message
+        addMessage('👋 Welcome! Paste your JWT token and connect to start chatting.', true);
+    </script>
+</body>
+</html>

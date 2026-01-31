@@ -8,6 +8,7 @@ from .middleware import TokenAuthMiddleware
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
 
+# FIRST initialize Django
 django_asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter(

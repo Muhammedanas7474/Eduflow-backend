@@ -18,6 +18,7 @@ from apps.common.responses import error_response, success_response
 from apps.courses.models import Course
 from apps.enrollments.models import Enrollment, EnrollmentRequest
 from apps.tenants.models import Tenant
+from django.conf import settings
 from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -27,7 +28,9 @@ from rest_framework.generics import ListCreateAPIView, UpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from .utils import delete_otp, get_otp, send_otp
 
@@ -91,18 +94,45 @@ class VerifyOTPView(APIView):
             user.save()
 
             refresh = RefreshToken.for_user(user)
+            # Add custom claims for WebSocket authentication
+            refresh["tenant_id"] = user.tenant_id
+            refresh["role"] = user.role
+            refresh["full_name"] = user.full_name or ""
 
-            return Response(
+            response = Response(
                 success_response(
                     message="OTP verified successfully",
                     data={
-                        "access": str(refresh.access_token),
-                        "refresh": str(refresh),
                         "role": user.role,
+                        # Access/Refresh tokens are now in cookies, but we might still return them or user info
+                        "access_expiry": str(
+                            settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].seconds
+                        ),
                     },
                 ),
                 status=200,
             )
+
+            # Set Cookies
+            response.set_cookie(
+                key=settings.SIMPLE_JWT.get("AUTH_COOKIE", "access_token"),
+                value=str(refresh.access_token),
+                expires=settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"],
+                secure=not settings.DEBUG,
+                httponly=True,
+                samesite="Lax",
+            )
+            response.set_cookie(
+                key=settings.SIMPLE_JWT.get("AUTH_COOKIE_REFRESH", "refresh_token"),
+                value=str(refresh),
+                expires=settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"],
+                secure=not settings.DEBUG,
+                httponly=True,
+                samesite="Lax",
+            )
+            print("ACCESS TOKEN:", str(refresh.access_token))
+
+            return response
 
         except AppException as e:
             return Response(
@@ -114,6 +144,93 @@ class VerifyOTPView(APIView):
                 error_response(message=e.detail, code="VALIDATION_ERROR"),
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get(
+            settings.SIMPLE_JWT.get("AUTH_COOKIE_REFRESH", "refresh_token")
+        )
+
+        if refresh_token:
+            request.data["refresh"] = refresh_token
+
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        token = serializer.validated_data
+
+        response = Response(
+            success_response(
+                message="Token refreshed successfully",
+                data={
+                    "access_expiry": str(
+                        settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].seconds
+                    )
+                },
+            ),
+            status=status.HTTP_200_OK,
+        )
+
+        response.set_cookie(
+            key=settings.SIMPLE_JWT.get("AUTH_COOKIE", "access_token"),
+            value=token["access"],
+            expires=settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"],
+            secure=not settings.DEBUG,
+            httponly=True,
+            samesite="Lax",
+        )
+
+        return response
+
+
+class LogoutView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        response = Response(
+            success_response(message="Logged out successfully"),
+            status=status.HTTP_200_OK,
+        )
+        response.delete_cookie(settings.SIMPLE_JWT.get("AUTH_COOKIE", "access_token"))
+        response.delete_cookie(
+            settings.SIMPLE_JWT.get("AUTH_COOKIE_REFRESH", "refresh_token")
+        )
+        return response
+
+
+class WebSocketTokenView(APIView):
+    """
+    Returns a fresh access token for WebSocket authentication.
+
+    Since WebSockets cannot access HTTP-only cookies, the frontend needs
+    to call this endpoint to get a token to pass via query string.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Generate a fresh access token with custom claims
+        refresh = RefreshToken.for_user(user)
+        refresh["tenant_id"] = user.tenant_id
+        refresh["role"] = user.role
+        refresh["full_name"] = user.full_name or ""
+
+        return Response(
+            success_response(
+                message="WebSocket token generated",
+                data={
+                    "token": str(refresh.access_token),
+                    "expires_in": settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].seconds,
+                },
+            ),
+            status=status.HTTP_200_OK,
+        )
 
 
 class RegisterView(APIView):

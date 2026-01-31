@@ -1,0 +1,7 @@
+Django>=5.0
+channels
+channels-redis
+daphne
+djangorestframework
+djangorestframework-simplejwt
+PyJWT
