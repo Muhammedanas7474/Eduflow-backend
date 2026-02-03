@@ -23,7 +23,6 @@ from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
-from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListCreateAPIView, UpdateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -37,6 +36,7 @@ from .utils import delete_otp, get_otp, send_otp
 
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     @swagger_auto_schema(
         request_body=VerifyOTPSerializer,
@@ -47,21 +47,17 @@ class VerifyOTPView(APIView):
                     type=openapi.TYPE_OBJECT,
                     properties={
                         "access": openapi.Schema(type=openapi.TYPE_STRING),
-                        "refresh": openapi.Schema(type=openapi.TYPE_STRING),
                         "role": openapi.Schema(type=openapi.TYPE_STRING),
+                        "access_expiry": openapi.Schema(type=openapi.TYPE_STRING),
                     },
                 ),
             ),
-            400: "Validation Error",
-            404: "User not found",
         },
     )
     def post(self, request):
         try:
             serializer = VerifyOTPSerializer(data=request.data)
-            if not serializer.is_valid():
-                print("VALIDATION ERROR:", serializer.errors)
-                raise ValidationError(serializer.errors)
+            serializer.is_valid(raise_exception=True)
 
             phone = serializer.validated_data["phone_number"]
             otp_input = serializer.validated_data["otp"]
@@ -71,16 +67,16 @@ class VerifyOTPView(APIView):
             if not user:
                 raise AppException("User not found")
 
-            data = get_otp(
+            stored_otp = get_otp(
                 tenant_id=user.tenant_id,
                 phone=phone,
                 purpose=purpose,
             )
 
-            if not data:
+            if not stored_otp:
                 raise AppException("OTP expired or not found")
 
-            if str(data) != str(otp_input):
+            if str(stored_otp) != str(otp_input):
                 raise AppException("Invalid OTP")
 
             delete_otp(
@@ -91,32 +87,38 @@ class VerifyOTPView(APIView):
 
             user.is_phone_verified = True
             user.is_active = True
-            user.save()
+            user.save(update_fields=["is_phone_verified", "is_active"])
 
+            # 🔐 Generate JWT
             refresh = RefreshToken.for_user(user)
-            # Add custom claims for WebSocket authentication
+
+            # ✅ Custom claims (required for realtime service)
             refresh["tenant_id"] = user.tenant_id
             refresh["role"] = user.role
-            refresh["full_name"] = user.full_name or ""
+            refresh["user_id"] = user.id
+
+            access_token = str(refresh.access_token)
 
             response = Response(
-                success_response(
-                    message="OTP verified successfully",
-                    data={
+                {
+                    "success": True,
+                    "message": "OTP verified successfully",
+                    "data": {
+                        "access": access_token,  # ✅ FIXED
+                        "refresh": str(refresh),
                         "role": user.role,
-                        # Access/Refresh tokens are now in cookies, but we might still return them or user info
                         "access_expiry": str(
                             settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].seconds
                         ),
                     },
-                ),
-                status=200,
+                },
+                status=status.HTTP_200_OK,
             )
 
-            # Set Cookies
+            # ✅ Cookies (unchanged)
             response.set_cookie(
                 key=settings.SIMPLE_JWT.get("AUTH_COOKIE", "access_token"),
-                value=str(refresh.access_token),
+                value=access_token,
                 expires=settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"],
                 secure=not settings.DEBUG,
                 httponly=True,
@@ -130,19 +132,14 @@ class VerifyOTPView(APIView):
                 httponly=True,
                 samesite="Lax",
             )
-            print("ACCESS TOKEN:", str(refresh.access_token))
 
+            print("ACCESS TOKEN (WS):", access_token)
             return response
 
         except AppException as e:
             return Response(
-                error_response(e.message, e.code),
+                {"success": False, "message": e.message, "data": None},
                 status=e.status_code,
-            )
-        except ValidationError as e:
-            return Response(
-                error_response(message=e.detail, code="VALIDATION_ERROR"),
-                status=status.HTTP_400_BAD_REQUEST,
             )
 
 
@@ -288,6 +285,7 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     @swagger_auto_schema(
         request_body=LoginSerializer,
@@ -304,6 +302,7 @@ class LoginView(APIView):
             serializer = LoginSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
+            phone = serializer.validated_data["phone_number"]
             phone = serializer.validated_data["phone_number"]
             password = serializer.validated_data["password"]
             tenant_id = int(serializer.validated_data["tenant_id"])

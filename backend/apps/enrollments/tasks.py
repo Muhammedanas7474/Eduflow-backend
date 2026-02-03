@@ -1,84 +1,45 @@
-from datetime import timedelta
-
-from apps.enrollments.models import Enrollment, EnrollmentRequest
+import requests
 from celery import shared_task
-from django.utils import timezone
-
-
-@shared_task(
-    bind=True,
-    autoretry_for=(Exception,),
-    retry_kwargs={"max_retries": 3, "countdown": 10},
-)
-def enrollment_approved_task(self, tenant_id, enrollment_id):
-    """
-    Runs AFTER admin approves enrollment
-    """
-
-    enrollment = (
-        Enrollment.objects.select_related("student", "course")
-        .filter(
-            id=enrollment_id,
-            tenant_id=tenant_id,
-        )
-        .first()
-    )
-
-    if not enrollment:
-        return "Enrollment not found"
-
-    student = enrollment.student
-    course = enrollment.course
-
-    # ===============================
-    # 🔔 STUDENT NOTIFICATION (DB + WS)
-    # ===============================
-    from apps.notifications.services import create_notification
-
-    create_notification(
-        tenant=enrollment.tenant,
-        user=student,
-        type="ENROLLMENT_APPROVED",
-        message=f"You are enrolled in {course.title}",
-    )
-
-    # ===============================
-    # 🔔 EXISTING LOGS (UNCHANGED)
-    # ===============================
-    print(
-        f"[ENROLLMENT APPROVED] "
-        f"Student={student.phone_number} "
-        f"Course={course.title}"
-    )
-
-    if course.created_by:
-        print(
-            f"[INSTRUCTOR NOTIFY] "
-            f"Instructor={course.created_by.phone_number} "
-            f"Student={student.phone_number}"
-        )
-
-    print(
-        f"[ANALYTICS] "
-        f"tenant={tenant_id} "
-        f"enrollment_id={enrollment_id} "
-        f"time={timezone.now()}"
-    )
-
-    return "Enrollment approval notifications sent"
 
 
 @shared_task
-def pending_enrollment_reminder_task():
-    cutoff_time = timezone.now() - timedelta(hours=24)
+def sync_enrollment_to_realtime(
+    user_id, course_id, tenant_id, course_name, instructor_id=None
+):
+    """
+    Call Realtime Service Webhook to add user to course chat room.
+    Also adds the instructor if provided.
+    """
+    # Realtime Service internal URL (within Docker network)
+    # Using 'realtime' service name from docker-compose
+    url = "http://realtime:8001/api/chat/webhook/enrollment/"
 
-    pending_requests = EnrollmentRequest.objects.filter(
-        status="PENDING", requested_at__lte=cutoff_time
-    ).select_related("student", "course")
+    payload = {
+        "user_id": user_id,
+        "course_id": course_id,
+        "tenant_id": tenant_id,
+        "course_name": course_name,
+        "instructor_id": instructor_id,
+    }
 
-    for req in pending_requests:
-        print(
-            f"[REMINDER] Pending enrollment | "
-            f"Student={req.student.phone_number} | "
-            f"Course={req.course.title}"
-        )
+    try:
+        response = requests.post(url, json=payload, timeout=5)
+        response.raise_for_status()
+        return f"Synced user {user_id} to course {course_id} chat."
+    except requests.RequestException as e:
+        return f"Failed to sync enrollment: {str(e)}"
+
+
+@shared_task
+def enrollment_approved_task(tenant_id, enrollment_id):
+    """
+    Handle post-enrollment actions like sending confirmation emails.
+    """
+    from apps.enrollments.models import Enrollment
+
+    try:
+        enrollment = Enrollment.objects.get(id=enrollment_id)
+        # TODO: Send email
+        return f"Enrollment {enrollment.id} approved for {enrollment.student.email}"
+    except Enrollment.DoesNotExist:
+        return "Enrollment not found"

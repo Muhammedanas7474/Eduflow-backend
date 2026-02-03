@@ -32,7 +32,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-^h&un#+dnm+3*w#1k!dz3asy5wlev($m(%gelf^$*wn3^wg9*5"
+SECRET_KEY = "eduflow-secret-key-2026-sync-123"
+print(f"DEBUG BACKEND SECRET: {SECRET_KEY[:10]}...{SECRET_KEY[-5:]}")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -196,7 +197,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 
 CORS_ALLOW_CREDENTIALS = True

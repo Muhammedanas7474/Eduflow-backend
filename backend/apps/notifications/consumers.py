@@ -30,3 +30,17 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "created_at": event["created_at"],
             }
         )
+
+    async def chat_message_global(self, event):
+        """
+        Receives global chat notifications
+        """
+        await self.send_json(
+            {
+                "type": "chat_notification",
+                "room_id": event["room_id"],
+                "sender_name": event["sender_name"],
+                "message": event["message"],
+                "created_at": event["created_at"],
+            }
+        )

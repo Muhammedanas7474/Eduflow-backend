@@ -17,11 +17,14 @@ services:
     container_name: eduflow_realtime
     command: daphne -b 0.0.0.0 -p 8001 realtime_service.asgi:application
     env_file:
-      - .env
+      - ../realtime/.env
     volumes:
       - ../realtime:/app
+    ports:
+      - "8001:8001"
     depends_on:
       - redis
+
 
   celery_worker:
     build: .
