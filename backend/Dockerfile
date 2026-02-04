@@ -1,27 +1,26 @@
 FROM python:3.13-slim
 
-# Prevent python from writing pyc files
+# Prevent Python from writing pyc files
 ENV PYTHONDONTWRITEBYTECODE=1
-# Ensure logs are shown immediately
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies
+# System dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install python dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy backend code
+# Copy project
 COPY . .
 
+# Expose internal port ONLY
 EXPOSE 8000
 
-# Default command (will be overridden for celery)
-# CMD ["gunicorn", "eduflow.wsgi:application", "--bind", "0.0.0.0:8000"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "eduflow.asgi:application"]

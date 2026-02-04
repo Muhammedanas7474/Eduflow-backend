@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     environment:
-      - DJANGO_SETTINGS_MODULE=eduflow.settings
+      DJANGO_SETTINGS_MODULE: eduflow.settings
     volumes:
       - .:/app
     depends_on:
@@ -20,35 +20,22 @@ services:
       - ../realtime/.env
     volumes:
       - ../realtime:/app
-    ports:
-      - "8001:8001"
     depends_on:
       - redis
 
-
   celery_worker:
     build: .
-    container_name: eduflow_celery_worker
     command: celery -A eduflow worker --loglevel=info
     env_file:
       - .env
-    environment:
-      - DJANGO_SETTINGS_MODULE=eduflow.settings
-    volumes:
-      - .:/app
     depends_on:
       - redis
 
   celery_beat:
     build: .
-    container_name: eduflow_celery_beat
     command: celery -A eduflow beat --loglevel=info
     env_file:
       - .env
-    environment:
-      - DJANGO_SETTINGS_MODULE=eduflow.settings
-    volumes:
-      - .:/app
     depends_on:
       - redis
 
@@ -63,4 +50,3 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: eduflow_redis

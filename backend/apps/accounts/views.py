@@ -110,6 +110,16 @@ class VerifyOTPView(APIView):
                         "access_expiry": str(
                             settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].seconds
                         ),
+                        "user": {
+                            "id": user.id,
+                            "full_name": user.full_name,
+                            "email": user.email,
+                            "phone_number": user.phone_number,
+                            "role": user.role,
+                            "is_active": user.is_active,
+                            "is_phone_verified": user.is_phone_verified,
+                            "tenant": user.tenant.name if user.tenant else None,
+                        },
                     },
                 },
                 status=status.HTTP_200_OK,
@@ -616,6 +626,7 @@ class ProfileView(APIView):
         return Response(
             success_response(
                 data={
+                    "id": user.id,
                     "full_name": user.full_name,
                     "email": user.email,
                     "phone_number": user.phone_number,
@@ -648,6 +659,7 @@ class ProfileUpdateView(APIView):
             success_response(
                 message="Profile updated successfully",
                 data={
+                    "id": user.id,
                     "full_name": user.full_name,
                     "email": user.email,
                     "phone_number": user.phone_number,

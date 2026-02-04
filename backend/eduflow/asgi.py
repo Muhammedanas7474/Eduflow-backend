@@ -1,19 +1,20 @@
+# ruff: noqa: E402
 import os
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
+
+from django.core.asgi import get_asgi_application
+
+# 👇 FIRST initialize Django
+django_asgi_app = get_asgi_application()
 
 from apps.notifications.routing import (
     websocket_urlpatterns as notifications_urlpatterns,
 )
 from channels.routing import ProtocolTypeRouter, URLRouter
-from django.core.asgi import get_asgi_application
-from eduflow.middleware import TokenAuthMiddleware
 
-# Environment setup AFTER imports
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
+from .middleware import TokenAuthMiddleware
 
-# Initialize Django
-django_asgi_app = get_asgi_application()
-
-# Re-export websocket patterns (logic unchanged)
 websocket_urlpatterns = notifications_urlpatterns
 
 application = ProtocolTypeRouter(
