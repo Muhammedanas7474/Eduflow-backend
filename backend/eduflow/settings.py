@@ -32,7 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "eduflow-secret-key-2026-sync-123"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 print(f"DEBUG BACKEND SECRET: {SECRET_KEY[:10]}...{SECRET_KEY[-5:]}")
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -66,6 +66,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.common.middleware.internal_service_auth.InternalServiceAuthMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -252,3 +253,5 @@ CELERY_BROKER_USE_SSL = {
 CELERY_REDIS_BACKEND_USE_SSL = {
     "ssl_cert_reqs": ssl.CERT_NONE,
 }
+
+AI_SERVICE_URL = "http://eduflow-ai:8002"

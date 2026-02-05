@@ -50,3 +50,15 @@ services:
 
   redis:
     image: redis:7-alpine
+
+  ai-service:
+    build: ../ai-service
+    container_name: eduflow-ai
+    ports:
+      - "8002:8002"
+    env_file:
+      - ../ai-service/.env
+networks:
+  eduflow-internal:
+    driver: bridge
+
