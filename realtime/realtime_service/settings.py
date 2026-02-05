@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+# ruff: noqa: E402
+
 import os
 from pathlib import Path
 

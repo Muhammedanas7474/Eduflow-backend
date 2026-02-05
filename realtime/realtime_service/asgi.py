@@ -1,20 +1,14 @@
+# ruff: noqa: E402
 import os
 
-from channels.routing import ProtocolTypeRouter, URLRouter
-from django.core.asgi import get_asgi_application
-
-from chat.routing import websocket_urlpatterns
-from core.middleware import JWTAuthMiddleware
-
-# Environment setup AFTER imports
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "realtime_service.settings")
 
-django_asgi_app = get_asgi_application()
+from channels.routing import ProtocolTypeRouter, URLRouter
+from chat.routing import websocket_urlpatterns
+from core.middleware import TokenAuthMiddleware
 
-# JWT Authentication enabled for WebSocket connections
 application = ProtocolTypeRouter(
     {
-        "http": django_asgi_app,
-        "websocket": JWTAuthMiddleware(URLRouter(websocket_urlpatterns)),
+        "websocket": TokenAuthMiddleware(URLRouter(websocket_urlpatterns)),
     }
 )
