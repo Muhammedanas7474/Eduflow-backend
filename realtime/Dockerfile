@@ -17,4 +17,8 @@ COPY . .
 
 EXPOSE 8001
 
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["daphne", "-b", "0.0.0.0", "-p", "8001", "realtime_service.asgi:application"]

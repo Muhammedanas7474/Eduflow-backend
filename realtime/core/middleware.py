@@ -1,27 +1,34 @@
 from urllib.parse import parse_qs
 
-from channels.db import database_sync_to_async
-from django.contrib.auth import get_user_model
+import jwt
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import AccessToken
-
-User = get_user_model()
 
 
-@database_sync_to_async
-def get_user_from_token(token):
-    try:
-        access_token = AccessToken(token)
-        user_id = access_token["user_id"]
-        return User.objects.get(id=user_id)
-    except (TokenError, User.DoesNotExist):
-        return AnonymousUser()
-
-
-class JWTAuthMiddleware:
+class WebSocketUser:
     """
-    JWT authentication for WebSocket connections
+    Ephemeral user object created from JWT claims.
+    No database lookup needed — purely stateless.
+    """
+
+    def __init__(self, user_id, tenant_id, role="STUDENT", full_name=""):
+        self.id = int(user_id) if user_id is not None else None
+        self.pk = self.id
+        self.tenant_id = int(tenant_id) if tenant_id is not None else None
+        self.role = role
+        self.full_name = full_name
+        self.is_authenticated = True
+        self.is_anonymous = False
+
+    def __str__(self):
+        return f"WebSocketUser(id={self.id}, role={self.role})"
+
+
+class TokenAuthMiddleware:
+    """
+    Stateless JWT authentication for WebSocket connections.
+    Extracts the token from query string, decodes it without DB lookup,
+    and creates an ephemeral WebSocketUser.
     """
 
     def __init__(self, inner):
@@ -34,8 +41,21 @@ class JWTAuthMiddleware:
         token = params.get("token", [None])[0]
 
         if token:
-            scope["user"] = await get_user_from_token(token)
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                scope["user"] = WebSocketUser(
+                    user_id=payload.get("user_id"),
+                    tenant_id=payload.get("tenant_id"),
+                    role=payload.get("role", "STUDENT"),
+                    full_name=payload.get("full_name", ""),
+                )
+            except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+                scope["user"] = AnonymousUser()
         else:
             scope["user"] = AnonymousUser()
 
         return await self.inner(scope, receive, send)
+
+
+# Alias for backward compatibility
+JWTAuthMiddleware = TokenAuthMiddleware
