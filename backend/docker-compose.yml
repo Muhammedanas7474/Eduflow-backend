@@ -11,6 +11,8 @@ services:
       - .:/app
     depends_on:
       - redis
+    networks:
+      - eduflow-internal   # ✅ ADDED
 
   realtime:
     build: ../realtime
@@ -22,6 +24,8 @@ services:
       - ../realtime:/app
     depends_on:
       - redis
+    networks:
+      - eduflow-internal   # ✅ ADDED
 
   celery_worker:
     build: .
@@ -30,6 +34,8 @@ services:
       - .env
     depends_on:
       - redis
+    networks:
+      - eduflow-internal   # ✅ ADDED
 
   celery_beat:
     build: .
@@ -38,6 +44,8 @@ services:
       - .env
     depends_on:
       - redis
+    networks:
+      - eduflow-internal   # ✅ ADDED
 
   nginx:
     build: ../nginx
@@ -47,18 +55,27 @@ services:
     depends_on:
       - backend
       - realtime
+      - ai-service         # ✅ ADDED
+    networks:
+      - eduflow-internal   # ✅ ADDED
 
   redis:
     image: redis:7-alpine
+    networks:
+      - eduflow-internal   # ✅ ADDED
 
   ai-service:
     build: ../ai-service
     container_name: eduflow-ai
-    ports:
-      - "8002:8002"
+    expose:
+      - "8002"
     env_file:
       - ../ai-service/.env
+    volumes:
+      - ../ai-service:/app
+    networks:
+      - eduflow-internal
+
 networks:
   eduflow-internal:
     driver: bridge
-

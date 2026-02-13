@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Course, Lesson
+from .models import Course, Lesson, LessonResource
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -34,8 +34,19 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at", "created_by"]
 
+        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+
+
+class LessonResourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LessonResource
+        fields = ["id", "lesson", "title", "file_url", "file_type", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
 
 class LessonSerializer(serializers.ModelSerializer):
+    resources = LessonResourceSerializer(many=True, read_only=True)
+
     class Meta:
         model = Lesson
         fields = [
@@ -46,5 +57,6 @@ class LessonSerializer(serializers.ModelSerializer):
             "order",
             "is_active",
             "created_at",
+            "resources",
         ]
         read_only_fields = ["id", "created_at"]

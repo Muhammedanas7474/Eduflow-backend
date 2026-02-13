@@ -1,7 +1,9 @@
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from .models import CallSession, ChatMessage, ChatRoom, ChatRoomMember
+from realtime.chat.models import ChatMessage
+
+from .models import CallSession, ChatRoom, ChatRoomMember
 
 
 class VideoCallConsumer(AsyncJsonWebsocketConsumer):

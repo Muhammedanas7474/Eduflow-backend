@@ -1,15 +1,20 @@
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from .models import Course, Lesson
+from .models import Course, Lesson, LessonResource
 from .permissions import IsAdminOrInstructor
-from .serializers import CourseListSerializer, CourseSerializer, LessonSerializer
+from .serializers import (
+    CourseListSerializer,
+    CourseSerializer,
+    LessonResourceSerializer,
+    LessonSerializer,
+)
 
 
 class CourseViewSet(ModelViewSet):
@@ -115,3 +120,22 @@ class LessonViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
+
+
+class LessonResourceViewSet(ModelViewSet):
+    serializer_class = LessonResourceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return LessonResource.objects.select_related("lesson").filter(
+            lesson__tenant=self.request.user.tenant
+        )
+
+    def perform_create(self, serializer):
+        # Ensure the lesson belongs to the same tenant
+        lesson = serializer.validated_data["lesson"]
+        if lesson.tenant != self.request.user.tenant:
+            raise serializers.ValidationError(
+                "You cannot add resources to lessons from another tenant."
+            )
+        serializer.save()
