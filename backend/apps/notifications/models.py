@@ -21,3 +21,14 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.type} → {self.user.phone_number}"
+
+
+class DeviceToken(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="device_tokens"
+    )
+    token = models.TextField(unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.token[:20]}"

@@ -1,10 +1,10 @@
-# ruff: noqa: E402
-
 import os
 import sys
 
 import boto3
+import django
 from botocore.exceptions import ClientError
+from django.conf import settings
 
 # Setup environment to access Django settings
 # Get the directory containing this script (which is .../backend)
@@ -17,8 +17,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
-import django
-from django.conf import settings
+
 
 django.setup()
 
@@ -29,9 +28,10 @@ def check_aws_health():
     print("=" * 50 + "\n")
 
     print("🔧 CONFIGURATION:")
-    print(f"   - AWS_REGION (App): {settings.AWS_REGION}")
-    print(f"   - SQS Queue URL:    {settings.AWS_SQS_QUEUE_URL}")
-    print(f"   - S3 Bucket Name:   {settings.AWS_S3_BUCKET_NAME}")
+    print(f"   - AWS_S3_REGION (File): {settings.AWS_S3_REGION}")
+    print(f"   - AWS_SQS_REGION (Q):   {settings.AWS_SQS_REGION}")
+    print(f"   - SQS Queue URL:        {settings.AWS_SQS_QUEUE_URL}")
+    print(f"   - S3 Bucket Name:       {settings.AWS_S3_BUCKET_NAME}")
     print("-" * 50)
 
     # ---------------------------------------------------------
@@ -66,7 +66,7 @@ def check_aws_health():
     try:
         s3 = boto3.client(
             "s3",
-            region_name=settings.AWS_REGION,
+            region_name=settings.AWS_S3_REGION,
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
         )

@@ -139,18 +139,93 @@ class LessonProgressViewSet(ModelViewSet):
         return LessonProgressCreateSerializer
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(
-            data=request.data, context={"request": request}
+        user = request.user
+        tenant = user.tenant
+        lesson_id = request.data.get("lesson")
+
+        if user.role != "STUDENT":
+            return Response(
+                {"detail": "Only students can mark lesson progress"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            lesson = Lesson.objects.get(id=lesson_id, tenant=tenant)
+        except Lesson.DoesNotExist:
+            return Response(
+                {"detail": "Lesson not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get or create progress — handle already-exists gracefully
+        progress, created = LessonProgress.objects.get_or_create(
+            tenant=tenant,
+            student=user,
+            lesson=lesson,
+            defaults={"is_completed": True, "completed_at": timezone.now()},
         )
-        serializer.is_valid(raise_exception=True)
-        progress = serializer.save()
+
+        if not created and not progress.is_completed:
+            progress.mark_completed()
+
+        # ── Auto-Quiz Generation ──
+        quiz_status = None
+        quiz_id = None
+
+        try:
+            # Check if lesson has PDF resources
+            pdf_resources = lesson.resources.exclude(file_type="link")
+            has_pdf = any(
+                r.file_url.endswith(".pdf") or "pdf" in r.file_type.lower()
+                for r in pdf_resources
+            )
+
+            if has_pdf:
+                from apps.courses.models import Quiz
+
+                # Check if a quiz already exists for this lesson
+                existing_quiz = Quiz.objects.filter(
+                    lesson=lesson, tenant=tenant
+                ).first()
+
+                if existing_quiz:
+                    quiz_id = existing_quiz.id
+                    quiz_status = existing_quiz.status.lower()
+                else:
+                    # Create placeholder quiz and dispatch Celery task
+                    new_quiz = Quiz.objects.create(
+                        course=lesson.course,
+                        lesson=lesson,
+                        tenant=tenant,
+                        created_by=None,
+                        title=f"Quiz – {lesson.title}",
+                        status="GENERATING",
+                    )
+                    quiz_id = new_quiz.id
+                    quiz_status = "generating"
+
+                    from apps.ai.tasks import generate_lesson_quiz
+
+                    transaction.on_commit(
+                        lambda: generate_lesson_quiz.delay(
+                            new_quiz.id, lesson.id, tenant.id
+                        )
+                    )
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(f"Auto-quiz trigger error: {e}")
 
         return Response(
             success_response(
                 data={
                     "lesson": progress.lesson.id,
                     "completed": progress.is_completed,
-                    "completed_at": progress.completed_at,
+                    "completed_at": (
+                        str(progress.completed_at) if progress.completed_at else None
+                    ),
+                    "quiz_status": quiz_status,
+                    "quiz_id": quiz_id,
                 },
                 message="Lesson marked as completed",
             )

@@ -134,8 +134,15 @@ class LessonResourceViewSet(ModelViewSet):
     def perform_create(self, serializer):
         # Ensure the lesson belongs to the same tenant
         lesson = serializer.validated_data["lesson"]
+        print(
+            f"DEBUG: Creating Resource. Lesson: {lesson.id}, Tenant: {lesson.tenant}, UserTenant: {self.request.user.tenant}"
+        )
+        print(f"DEBUG: Data: {serializer.validated_data}")
+
         if lesson.tenant != self.request.user.tenant:
+            print("DEBUG: Tenant mismatch")
             raise serializers.ValidationError(
                 "You cannot add resources to lessons from another tenant."
             )
         serializer.save()
+        print("DEBUG: Resource saved successfully")

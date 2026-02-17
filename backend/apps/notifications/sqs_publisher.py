@@ -17,7 +17,7 @@ def get_queue_region():
     """
     queue_url = getattr(settings, "AWS_SQS_QUEUE_URL", "")
     if not queue_url:
-        return settings.AWS_REGION
+        return settings.AWS_SQS_REGION
 
     try:
         # urlparse("https://sqs.ap-south-1.amazonaws.com/...")
@@ -28,7 +28,7 @@ def get_queue_region():
     except Exception:
         pass
 
-    return settings.AWS_REGION
+    return settings.AWS_SQS_REGION
 
 
 def get_sqs_client():

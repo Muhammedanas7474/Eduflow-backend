@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Course, Lesson, LessonResource
+from .models import Course, Lesson, LessonResource, Option, Question, Quiz
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -34,8 +34,6 @@ class CourseListSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at", "created_by"]
 
-        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
-
 
 class LessonResourceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -60,3 +58,37 @@ class LessonSerializer(serializers.ModelSerializer):
             "resources",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class OptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Option
+        fields = ["id", "option_text"]
+        read_only_fields = ["id"]
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    options = OptionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ["id", "question_text", "correct_answer", "options"]
+        read_only_fields = ["id"]
+
+
+class QuizSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Quiz
+        fields = [
+            "id",
+            "course",
+            "lesson",
+            "title",
+            "status",
+            "created_by",
+            "created_at",
+            "questions",
+        ]
+        read_only_fields = ["id", "created_at", "created_by"]

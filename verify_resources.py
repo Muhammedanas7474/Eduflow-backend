@@ -53,21 +53,19 @@ def verify_resources():
         c_id = course["id"]
         print(f"Checking course {c_id} for lessons...")
 
-        lessons_res = requests.get(
-            f"{BASE_URL}/lessons/?course={c_id}", headers=headers
-        )
-        if lessons_res.status_code != 200:
+        l_res = requests.get(f"{BASE_URL}/lessons/?course={c_id}", headers=headers)
+        if l_res.status_code != 200:
             continue
 
-        lessons_data = lessons_res.json()
-        if isinstance(lessons_data, dict) and "results" in lessons_data:
-            lessons_list = lessons_data["results"]
+        l_data = l_res.json()
+        if isinstance(l_data, dict) and "results" in l_data:
+            l_list = l_data["results"]
         else:
-            lessons_list = lessons_data
+            l_list = l_data
 
-        if lessons_list:
+        if l_list:
             course_id = c_id
-            lesson_id = lessons_list[0]["id"]
+            lesson_id = l_list[0]["id"]
             print(f"Found lesson {lesson_id} in course {course_id}")
             break
 
@@ -86,11 +84,9 @@ def verify_resources():
         "file_url": "https://example.com/test.pdf",
         "file_type": "pdf",
     }
-
     create_res = requests.post(
         f"{BASE_URL}/lesson-resources/", json=resource_data, headers=headers
     )
-
     if create_res.status_code == 201:
         print("Resource created successfully.")
         resource_id = create_res.json()["id"]
@@ -98,6 +94,7 @@ def verify_resources():
         print(f"Failed to create resource: {create_res.text}")
         return
 
+    # 4. Verify Lesson contains resource
     # 4. Verify Lesson contains resource
     print("Verifying resource in lesson...")
     lesson_res = requests.get(
@@ -109,15 +106,14 @@ def verify_resources():
         print(lesson_res.text)
         return
 
-    lessons_data = lesson_res.json()
-    if isinstance(lessons_data, dict) and "results" in lessons_data:
-        lessons = lessons_data["results"]
+    l_data = lesson_res.json()
+    if isinstance(l_data, dict) and "results" in l_data:
+        lessons = l_data["results"]
     else:
-        lessons = lessons_data
+        lessons = l_data
 
     target_lesson = next(
-        (lesson for lesson in lessons if lesson["id"] == lesson_id),
-        None,
+        (lesson for lesson in lessons if lesson["id"] == lesson_id), None
     )
 
     if not target_lesson:
@@ -136,7 +132,6 @@ def verify_resources():
     del_res = requests.delete(
         f"{BASE_URL}/lesson-resources/{resource_id}/", headers=headers
     )
-
     if del_res.status_code == 204:
         print("Resource deleted successfully.")
     else:

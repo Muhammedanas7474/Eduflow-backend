@@ -1,17 +1,18 @@
-# ruff: noqa: E402
-
 import os
-
-import django
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
-django.setup()
-
-from apps.accounts.models import User
-from apps.tenants.models import Tenant
 
 
 def setup():
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
+
+    import django  # noqa: E402
+
+    django.setup()
+
+    from apps.accounts.models import User  # noqa: E402
+    from apps.courses.models import Course, Lesson  # noqa: E402
+    from apps.tenants.models import Tenant  # noqa: E402
+    from rest_framework_simplejwt.tokens import RefreshToken  # noqa: E402
+
     # 1. Create Tenant
     tenant, created = Tenant.objects.get_or_create(name="Test Tenant")
     print(f"Tenant ID: {tenant.id}")
@@ -46,16 +47,12 @@ def setup():
         )
 
     # Generate Token for Test User
-    from rest_framework_simplejwt.tokens import RefreshToken
-
     user = User.objects.get(phone_number=phone)
     refresh = RefreshToken.for_user(user)
     refresh["tenant_id"] = user.tenant_id
     refresh["role"] = user.role
     refresh["user_id"] = user.id
     print(f"\nACCESS_TOKEN: {str(refresh.access_token)}")
-
-    from apps.courses.models import Course, Lesson
 
     courses = Course.objects.filter(tenant_id=tenant.id)
     print(f"\nTotal Courses: {courses.count()}")

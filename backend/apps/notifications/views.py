@@ -1,5 +1,5 @@
 from apps.common.responses import success_response
-from apps.notifications.models import Notification
+from apps.notifications.models import DeviceToken, Notification
 from apps.notifications.serializers import NotificationSerializer
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import IsAuthenticated
@@ -61,3 +61,20 @@ class UnreadNotificationCountAPIView(APIView):
         ).count()
 
         return Response(success_response(data={"unread_count": count}))
+
+
+class SaveDeviceTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get("token")
+
+        if not token:
+            return Response({"error": "Token is required"}, status=400)
+
+        DeviceToken.objects.update_or_create(
+            user=request.user,
+            token=token,
+        )
+
+        return Response({"message": "Device token saved successfully"})

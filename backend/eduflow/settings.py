@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "apps.courses",
     "apps.enrollments.apps.EnrollmentsConfig",
     "apps.notifications",
+    "apps.ai",
 ]
 
 MIDDLEWARE = [

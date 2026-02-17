@@ -155,6 +155,9 @@ class VerifyOTPView(APIView):
 
 class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
+        print(f"DEBUG: Refresh Request Cookies: {request.COOKIES}")
+        print(f"DEBUG: Refresh Request Data: {request.data}")
+
         refresh_token = request.COOKIES.get(
             settings.SIMPLE_JWT.get("AUTH_COOKIE_REFRESH", "refresh_token")
         )
