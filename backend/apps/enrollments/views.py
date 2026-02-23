@@ -1,3 +1,6 @@
+import logging
+
+from apps.chat.models import ChatRoom
 from apps.common.exceptions import AppException
 from apps.common.permissions import IsAdmin, IsInstructor
 from apps.common.responses import success_response
@@ -21,6 +24,32 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
+
+logger = logging.getLogger(__name__)
+
+
+def add_student_to_course_chat(tenant_id, course, student_id):
+    """
+    Create or get a COURSE chat room for the given course and add the student
+    (and the instructor) as members.
+    """
+    try:
+        room, created = ChatRoom.get_or_create_course_room(
+            tenant_id=tenant_id,
+            course_id=course.id,
+            course_title=course.title,
+        )
+        # Always add the student
+        room.add_member(student_id)
+        # Also ensure the instructor is a member
+        if course.created_by_id:
+            room.add_member(course.created_by_id)
+        logger.info(
+            f"Added user {student_id} to course chat room {room.id} "
+            f"(course={course.id}, created_room={created})"
+        )
+    except Exception as e:
+        logger.error(f"Error adding student {student_id} to course chat: {e}")
 
 
 class EnrollmentViewSet(ModelViewSet):
@@ -383,6 +412,13 @@ class AdminEnrollmentRequestReviewAPIView(APIView):
                 enroll_req.status = "APPROVED"
                 enroll_req.save()
 
+                # Add student to course group chat
+                add_student_to_course_chat(
+                    tenant_id=tenant.id,
+                    course=enroll_req.course,
+                    student_id=enroll_req.student.id,
+                )
+
                 transaction.on_commit(
                     lambda: enrollment_approved_task.delay(
                         tenant_id=tenant.id, enrollment_id=enrollment.id
@@ -454,6 +490,13 @@ class InstructorEnrollmentRequestReviewAPIView(APIView):
 
                 enroll_req.status = "APPROVED"
                 enroll_req.save()
+
+                # Add student to course group chat
+                add_student_to_course_chat(
+                    tenant_id=tenant.id,
+                    course=enroll_req.course,
+                    student_id=enroll_req.student.id,
+                )
 
                 transaction.on_commit(
                     lambda: enrollment_approved_task.delay(

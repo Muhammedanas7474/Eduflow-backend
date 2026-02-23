@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
-import ssl
 from datetime import timedelta
 from pathlib import Path
 
@@ -64,6 +63,7 @@ INSTALLED_APPS = [
     "apps.enrollments.apps.EnrollmentsConfig",
     "apps.notifications",
     "apps.ai",
+    "apps.chat",
 ]
 
 MIDDLEWARE = [
@@ -141,10 +141,10 @@ CACHES = {
         "LOCATION": os.getenv("REDIS_URL"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "REDIS_CLIENT_KWARGS": {
-                "ssl": True,
-                "ssl_cert_reqs": ssl.CERT_NONE,
-            },
+            # "REDIS_CLIENT_KWARGS": {
+            #     "ssl": True,
+            #     "ssl_cert_reqs": ssl.CERT_NONE,
+            # },
         },
     }
 }
@@ -229,6 +229,7 @@ CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_ALWAYS_EAGER = False
 
 
 # ==============================
@@ -251,12 +252,12 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
-CELERY_BROKER_USE_SSL = {
-    "ssl_cert_reqs": ssl.CERT_NONE,
-}
+# CELERY_BROKER_USE_SSL = {
+#     "ssl_cert_reqs": ssl.CERT_NONE,
+# }
 
-CELERY_REDIS_BACKEND_USE_SSL = {
-    "ssl_cert_reqs": ssl.CERT_NONE,
-}
+# CELERY_REDIS_BACKEND_USE_SSL = {
+#     "ssl_cert_reqs": ssl.CERT_NONE,
+# }
 
 AI_SERVICE_URL = "http://eduflow-ai:8002"

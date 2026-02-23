@@ -33,6 +33,27 @@ class ChatRoom(models.Model):
         member = self.members.exclude(user_id=user_id).first()
         return member.user_id if member else None
 
+    def add_member(self, user_id):
+        """Add a user to this room if not already a member. Returns (member, created)."""
+        return ChatRoomMember.objects.get_or_create(room=self, user_id=user_id)
+
+    @classmethod
+    def get_or_create_course_room(cls, tenant_id, course_id, course_title):
+        """
+        Find or create a COURSE chat room for a given course.
+        Returns (room, created) tuple.
+        """
+        room, created = cls.objects.get_or_create(
+            tenant_id=tenant_id,
+            course_id=course_id,
+            type="COURSE",
+            defaults={
+                "name": course_title,
+                "description": f"Group chat for {course_title}",
+            },
+        )
+        return room, created
+
     @classmethod
     def get_or_create_dm(cls, tenant_id, user_id_1, user_id_2):
         """

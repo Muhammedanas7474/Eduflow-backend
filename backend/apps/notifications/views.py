@@ -73,8 +73,8 @@ class SaveDeviceTokenView(APIView):
             return Response({"error": "Token is required"}, status=400)
 
         DeviceToken.objects.update_or_create(
-            user=request.user,
             token=token,
+            defaults={"user": request.user},
         )
 
         return Response({"message": "Device token saved successfully"})

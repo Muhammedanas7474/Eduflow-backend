@@ -4,48 +4,35 @@ services:
     container_name: eduflow_web
     command: daphne -b 0.0.0.0 -p 8000 eduflow.asgi:application
     env_file:
-      - .env
+      - .env.docker
     environment:
       DJANGO_SETTINGS_MODULE: eduflow.settings
-    volumes:
-      - .:/app
+    ports:
+      - "8000:8000"
     depends_on:
       - redis
     networks:
-      - eduflow-internal   # ✅ ADDED
-
-  realtime:
-    build: ../realtime
-    container_name: eduflow_realtime
-    command: daphne -b 0.0.0.0 -p 8001 realtime_service.asgi:application
-    env_file:
-      - ../realtime/.env
-    volumes:
-      - ../realtime:/app
-    depends_on:
-      - redis
-    networks:
-      - eduflow-internal   # ✅ ADDED
+      - eduflow-internal
 
   celery_worker:
     build: .
     command: celery -A eduflow worker --loglevel=info
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       - redis
     networks:
-      - eduflow-internal   # ✅ ADDED
+      - eduflow-internal
 
   celery_beat:
     build: .
     command: celery -A eduflow beat --loglevel=info
     env_file:
-      - .env
+      - .env.docker
     depends_on:
       - redis
     networks:
-      - eduflow-internal   # ✅ ADDED
+      - eduflow-internal
 
   nginx:
     build: ../nginx
@@ -54,28 +41,60 @@ services:
       - "80:80"
     depends_on:
       - backend
-      - realtime
-      - ai-service         # ✅ ADDED
+      - ai-service
     networks:
-      - eduflow-internal   # ✅ ADDED
+      - eduflow-internal
 
   redis:
     image: redis:7-alpine
     networks:
-      - eduflow-internal   # ✅ ADDED
+      - eduflow-internal
+
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: eduflow_db
+    environment:
+      POSTGRES_DB: eduflow_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - eduflow-internal
 
   ai-service:
     build: ../ai-service
     container_name: eduflow-ai
-    expose:
-      - "8002"
+    ports:
+      - "8002:8002"
     env_file:
-      - ../ai-service/.env
+      - ../ai-service/.env.docker # ✅ separate env
     volumes:
       - ../ai-service:/app
+    depends_on:
+      - redis
+    networks:
+      - eduflow-internal
+
+  ai-celery-worker:
+    build: ../ai-service
+    container_name: eduflow-ai-worker
+    command: celery -A app.celery_app:celery_app worker --loglevel=info --concurrency=1
+    env_file:
+      - ../ai-service/.env.docker
+    volumes:
+      - ../ai-service:/app
+    depends_on:
+      - redis
+      - ai-service
     networks:
       - eduflow-internal
 
 networks:
   eduflow-internal:
     driver: bridge
+
+volumes:
+  postgres_data:

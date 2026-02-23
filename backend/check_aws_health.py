@@ -1,10 +1,9 @@
+# ruff: noqa: E402
 import os
 import sys
 
 import boto3
-import django
 from botocore.exceptions import ClientError
-from django.conf import settings
 
 # Setup environment to access Django settings
 # Get the directory containing this script (which is .../backend)
@@ -17,7 +16,8 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "eduflow.settings")
-
+import django
+from django.conf import settings
 
 django.setup()
 

@@ -1,7 +1,10 @@
+import logging
 import random
 
 from apps.common.redis import redis_client
 from celery import shared_task
+
+logger = logging.getLogger(__name__)
 
 OTP_EXPIRY_SECONDS = 300
 
@@ -29,8 +32,11 @@ def send_otp_task(self, tenant_id, phone_number, purpose):
         otp,
     )
 
-    # For now just log (later SMS / WhatsApp / Email)
-    print(f"[OTP] tenant={tenant_id} phone={phone_number} otp={otp}")
+    # Log OTP prominently — visible via: docker compose logs -f celery_worker
+    logger.info("=" * 50)
+    logger.info(f"[OTP] tenant={tenant_id} phone={phone_number} otp={otp}")
+    logger.info(f"[OTP] redis_key={redis_key}")
+    logger.info("=" * 50)
 
     return True
 

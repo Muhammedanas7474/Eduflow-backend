@@ -33,34 +33,29 @@ def sync_enrollment_to_realtime(
 @shared_task
 def enrollment_approved_task(tenant_id, enrollment_id):
     """
-    Handle post-enrollment actions like sending confirmation emails.
+    Handle post-enrollment actions:
+    - Publish SQS event with email + FCM token for Lambda processing
     """
     from apps.enrollments.models import Enrollment
-    from apps.notifications.sqs_publisher import publish_event
+    from apps.notifications.sqs_publisher import publish_enrollment_event
 
     try:
-        enrollment = Enrollment.objects.get(id=enrollment_id)
+        enrollment = Enrollment.objects.select_related(
+            "student", "course", "course__created_by", "tenant"
+        ).get(id=enrollment_id)
 
-        # Prepare event data
-        event_data = {
-            "event_type": "enrollment_approved",
-            "tenant_id": str(tenant_id),
-            "email": enrollment.student.email,
-            "payload": {
-                "course_name": enrollment.course.title,
-                "student_name": enrollment.student.full_name or "Student",
-                "enrollment_id": str(enrollment.id),
-            },
-        }
-
-        # Publish to SQS
-        response = publish_event(event_data)
+        # publish_enrollment_event handles FCM token lookup + event structure
+        response = publish_enrollment_event(
+            user=enrollment.student,
+            tenant=enrollment.tenant,
+            course=enrollment.course,
+        )
 
         msg = f"Enrollment {enrollment.id} approved for {enrollment.student.email}."
         if response and "MessageId" in response:
-            msg += f" Email event published (MsgId: {response['MessageId']})"
+            msg += f" SQS event published (MsgId: {response['MessageId']})"
         else:
-            msg += " Failed to publish email event."
+            msg += " Failed to publish SQS event."
 
         return msg
     except Enrollment.DoesNotExist:
@@ -83,7 +78,7 @@ def pending_enrollment_reminder_task():
 
     # Find pending requests older than threshold
     pending_requests = EnrollmentRequest.objects.filter(
-        status="PENDING", created_at__lte=threshold
+        status="PENDING", requested_at__lte=threshold
     )
 
     count = pending_requests.count()

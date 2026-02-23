@@ -3,6 +3,7 @@ import logging
 from urllib.parse import urlparse
 
 import boto3
+from apps.notifications.models import DeviceToken
 from botocore.exceptions import ClientError
 from django.conf import settings
 
@@ -13,15 +14,13 @@ def get_queue_region():
     """
     Extracts the region from the SQS Queue URL.
     Example: https://sqs.ap-south-1.amazonaws.com/... -> ap-south-1
-    Fallback to settings.AWS_REGION if parsing fails.
+    Fallback to settings.AWS_SQS_REGION if parsing fails.
     """
     queue_url = getattr(settings, "AWS_SQS_QUEUE_URL", "")
     if not queue_url:
         return settings.AWS_SQS_REGION
 
     try:
-        # urlparse("https://sqs.ap-south-1.amazonaws.com/...")
-        # netloc = "sqs.ap-south-1.amazonaws.com"
         domain_parts = urlparse(queue_url).netloc.split(".")
         if len(domain_parts) >= 4 and domain_parts[0] == "sqs":
             return domain_parts[1]
@@ -57,14 +56,42 @@ def publish_event(event_data: dict):
             QueueUrl=queue_url,
             MessageBody=json.dumps(event_data),
         )
+        logger.info(f"SQS message sent. MessageId: {response.get('MessageId')}")
         return response
 
     except ClientError as e:
         logger.error(f"Failed to publish event to SQS: {e}")
-        # Re-raise or handle gracefully depending on requirements.
-        # For now, let's print error to console for visibility during dev as well
         print(f"SQS Publish Error: {e}")
         raise e
     except Exception as e:
         logger.exception("Unexpected error in publish_event")
         raise e
+
+
+def publish_enrollment_event(user, tenant, course):
+    """
+    Publishes an enrollment approval event to SQS, including
+    the student's FCM token for push notifications.
+    """
+    device = DeviceToken.objects.filter(user=user).first()
+
+    # Course uses 'created_by' not 'instructor'
+    instructor_name = ""
+    if course.created_by:
+        instructor_name = getattr(course.created_by, "full_name", "") or str(
+            course.created_by
+        )
+
+    event = {
+        "event_type": "enrollment_approved",
+        "tenant_id": str(tenant.id),
+        "email": user.email,
+        "fcm_token": device.token if device else None,
+        "payload": {
+            "course_name": course.title,
+            "student_name": getattr(user, "full_name", "") or "Student",
+            "instructor": instructor_name,
+        },
+    }
+
+    return publish_event(event)

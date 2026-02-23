@@ -2,6 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies (ffmpeg for audio extraction)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 
 # 1. Install CPU-only torch first (separate index to avoid pulling GPU version)
@@ -18,6 +23,9 @@ RUN pip install https://github.com/explosion/spacy-models/releases/download/en_c
 
 # 5. Pre-download the Flan-T5 model so first API call is fast
 RUN python -c "from transformers import pipeline; pipeline('text2text-generation', model='google/flan-t5-base')"
+
+# 6. Pre-download the Whisper base model
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('base', compute_type='int8')"
 
 COPY app ./app
 

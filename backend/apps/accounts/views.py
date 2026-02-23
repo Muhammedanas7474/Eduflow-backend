@@ -287,8 +287,21 @@ class RegisterView(APIView):
                 purpose="REGISTER",
             )
 
+            data = {}
+            if settings.DEBUG:
+                import time
+
+                time.sleep(0.5)  # Brief wait for Celery to store OTP
+                otp_code = get_otp(user.tenant_id, user.phone_number, "REGISTER")
+                if otp_code:
+                    data["debug_otp"] = (
+                        otp_code.decode() if isinstance(otp_code, bytes) else otp_code
+                    )
+
             return Response(
-                success_response(message="Registration successful. OTP sent."),
+                success_response(
+                    message="Registration successful. OTP sent.", data=data
+                ),
                 status=201,
             )
 
@@ -323,9 +336,14 @@ class LoginView(APIView):
             user = User.objects.filter(phone_number=phone, tenant_id=tenant_id).first()
 
             if not user:
+                print(f"DEBUG: User not found for phone {phone} and tenant {tenant_id}")
                 raise AppException("User not found", status_code=404)
 
-            if not user.check_password(password):
+            print(f"DEBUG: User found: {user.id} {user.phone_number} {user.tenant_id}")
+            check_res = user.check_password(password)
+            print(f"DEBUG: check_password('{password}') = {check_res}")
+
+            if not check_res:
                 raise AppException(
                     "Invalid phone number or password",
                     status_code=401,
@@ -341,7 +359,17 @@ class LoginView(APIView):
                 purpose="LOGIN",
             )
 
-            return Response(success_response(message="OTP sent for login"), status=200)
+            data = {}
+            if settings.DEBUG:
+                otp_code = get_otp(tenant_id, phone, "LOGIN")
+                if otp_code:
+                    data["debug_otp"] = (
+                        otp_code.decode() if isinstance(otp_code, bytes) else otp_code
+                    )
+
+            return Response(
+                success_response(message="OTP sent for login", data=data), status=200
+            )
 
         except AppException as e:
             return Response(error_response(e.message, e.code), status=e.status_code)
@@ -572,8 +600,19 @@ class ForgotPasswordView(APIView):
             purpose="FORGOT_PASSWORD",
         )
 
+        data = {}
+        if settings.DEBUG:
+            import time
+
+            time.sleep(0.5)
+            otp_code = get_otp(user.tenant_id, phone, "FORGOT_PASSWORD")
+            if otp_code:
+                data["debug_otp"] = (
+                    otp_code.decode() if isinstance(otp_code, bytes) else otp_code
+                )
+
         return Response(
-            success_response(message="OTP sent for password reset"),
+            success_response(message="OTP sent for password reset", data=data),
             status=status.HTTP_200_OK,
         )
 
@@ -592,16 +631,16 @@ class ResetPasswordView(APIView):
         if not user:
             raise AppException("User not found")
 
-        data = get_otp(
+        stored_otp = get_otp(
             tenant_id=user.tenant_id,
             phone=phone,
             purpose="FORGOT_PASSWORD",
         )
 
-        if not data:
+        if not stored_otp:
             raise AppException("OTP expired or not found")
 
-        if data["otp"] != otp_input:
+        if str(stored_otp) != str(otp_input):
             raise AppException("Invalid OTP")
 
         user.set_password(new_password)

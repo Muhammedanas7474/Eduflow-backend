@@ -15,6 +15,7 @@ class RoomListView(generics.ListAPIView):
     """List chat rooms for the authenticated user. Filter by ?type=COURSE or ?type=DM"""
 
     serializer_class = ChatRoomSerializer
+    pagination_class = None
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
@@ -41,6 +42,7 @@ class RoomListView(generics.ListAPIView):
 
 class MessageHistoryView(generics.ListAPIView):
     serializer_class = ChatMessageSerializer
+    pagination_class = None
 
     def get_queryset(self):
         room_id = self.kwargs["room_id"]
@@ -95,6 +97,7 @@ class CallHistoryView(generics.ListAPIView):
     """Get call history for a specific DM room."""
 
     serializer_class = CallSessionSerializer
+    pagination_class = None
 
     def get_queryset(self):
         room_id = self.kwargs["room_id"]

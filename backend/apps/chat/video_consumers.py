@@ -1,8 +1,7 @@
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from chat.models import ChatMessage
 
-from .models import CallSession, ChatRoom, ChatRoomMember
+from .models import CallSession, ChatMessage, ChatRoom, ChatRoomMember
 
 
 class VideoCallConsumer(AsyncJsonWebsocketConsumer):
@@ -14,7 +13,12 @@ class VideoCallConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
 
+        print(
+            f"[VIDEO WS] connect attempt: user={getattr(self.user, 'id', 'anon')}, authenticated={self.user.is_authenticated}"
+        )
+
         if not self.user.is_authenticated:
+            print("[VIDEO WS] REJECTED: user not authenticated")
             await self.close()
             return
 
@@ -23,16 +27,28 @@ class VideoCallConsumer(AsyncJsonWebsocketConsumer):
 
         # Verify user is a member of this DM room
         is_member = await self.check_membership()
+        print(
+            f"[VIDEO WS] user={self.user.id}, room={self.room_id}, is_member={is_member}, group={self.call_group}"
+        )
         if not is_member:
+            print(
+                f"[VIDEO WS] REJECTED: user {self.user.id} not member of room {self.room_id}"
+            )
             await self.close()
             return
 
         # Join call signaling group
         await self.channel_layer.group_add(self.call_group, self.channel_name)
         await self.accept()
+        print(
+            f"[VIDEO WS] CONNECTED: user={self.user.id}, room={self.room_id}, channel={self.channel_name}"
+        )
 
     async def disconnect(self, close_code):
         if hasattr(self, "call_group"):
+            print(
+                f"[VIDEO WS] DISCONNECT: user={self.user.id}, room={self.room_id}, code={close_code}"
+            )
             # Notify the other user that this user disconnected
             await self.channel_layer.group_send(
                 self.call_group,
@@ -46,6 +62,7 @@ class VideoCallConsumer(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content):
         msg_type = content.get("type")
+        print(f"[VIDEO WS] receive_json: user={self.user.id}, type={msg_type}")
 
         if msg_type == "call_offer":
             await self.handle_call_offer(content)
@@ -67,6 +84,9 @@ class VideoCallConsumer(AsyncJsonWebsocketConsumer):
 
         # Create call session in DB
         call = await self.create_call_session(callee_id)
+        print(
+            f"[VIDEO WS] CALL OFFER: caller={self.user.id}, callee={callee_id}, call_id={call.id if call else None}, group={self.call_group}"
+        )
 
         await self.channel_layer.group_send(
             self.call_group,
@@ -82,6 +102,9 @@ class VideoCallConsumer(AsyncJsonWebsocketConsumer):
 
     async def call_offer(self, event):
         # Only send to the callee, not back to the caller
+        print(
+            f"[VIDEO WS] call_offer handler: user={self.user.id}, callee_id={event['callee_id']}, match={event['callee_id'] == self.user.id}"
+        )
         if event["callee_id"] == self.user.id:
             await self.send_json(
                 {
@@ -92,8 +115,71 @@ class VideoCallConsumer(AsyncJsonWebsocketConsumer):
                     "call_id": event["call_id"],
                 }
             )
+            print(f"[VIDEO WS] SENT incoming_call to user={self.user.id}")
 
     # --- Call Answer ---
+
+    async def call_answer(self, event):
+        """Relay SDP answer back to the caller."""
+        # Only send to the original caller, not back to the answerer
+        if event["answerer_id"] != self.user.id:
+            await self.send_json(
+                {
+                    "type": "call_accepted",
+                    "sdp": event["sdp"],
+                    "call_id": event["call_id"],
+                }
+            )
+            print(f"[VIDEO WS] SENT call_accepted to user={self.user.id}")
+
+    # --- Call Ended ---
+
+    async def call_ended(self, event):
+        """Relay call ended to the other user."""
+        if event["user_id"] != self.user.id:
+            await self.send_json(
+                {
+                    "type": "call_ended",
+                    "reason": event.get("reason", "ended"),
+                    "call_id": event.get("call_id"),
+                }
+            )
+
+    # --- Call Rejected ---
+
+    async def call_rejected(self, event):
+        """Relay call rejection to the caller."""
+        if event["user_id"] != self.user.id:
+            await self.send_json(
+                {
+                    "type": "call_rejected",
+                    "call_id": event.get("call_id"),
+                }
+            )
+
+    # --- ICE Candidate ---
+
+    async def handle_ice_candidate(self, content):
+        """Relay ICE candidate to the other peer in the call group."""
+        candidate = content.get("candidate")
+        await self.channel_layer.group_send(
+            self.call_group,
+            {
+                "type": "ice.candidate",
+                "candidate": candidate,
+                "sender_id": self.user.id,
+            },
+        )
+
+    async def ice_candidate(self, event):
+        """Receive relayed ICE candidate and forward to the other peer."""
+        if event["sender_id"] != self.user.id:
+            await self.send_json(
+                {
+                    "type": "ice_candidate",
+                    "candidate": event["candidate"],
+                }
+            )
 
     @database_sync_to_async
     def create_system_message(self, content):

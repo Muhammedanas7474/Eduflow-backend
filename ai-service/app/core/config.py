@@ -20,6 +20,21 @@ class Settings(BaseSettings):
     aws_region: str = "eu-north-1"
     aws_storage_bucket_name: str = ""
 
+    # OpenAI
+    openai_api_key: str = ""
+
+    # Hugging Face
+    huggingface_api_key: str = ""
+
+    # Database (PGVector)
+    database_url: str = ""
+
+    # Whisper
+    whisper_model_size: str = "base"
+
+    # Redis
+    redis_url: str = "redis://redis:6379/0"
+
     class Config:
         env_file = ".env"
         extra = "ignore"

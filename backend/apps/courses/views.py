@@ -119,7 +119,41 @@ class LessonViewSet(ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user.tenant, created_by=self.request.user)
+        from apps.courses.tasks import trigger_video_processing
+        from django.db import transaction
+
+        lesson = serializer.save(
+            tenant=self.request.user.tenant, created_by=self.request.user
+        )
+
+        # Trigger AI video processing if lesson has a video URL
+        if lesson.video_url:
+            transaction.on_commit(
+                lambda: trigger_video_processing.delay(
+                    lesson_id=lesson.id,
+                    course_id=lesson.course_id,
+                    video_url=lesson.video_url,
+                    tenant_id=lesson.tenant_id,
+                )
+            )
+
+    def perform_update(self, serializer):
+        from apps.courses.tasks import trigger_video_processing
+        from django.db import transaction
+
+        old_video_url = self.get_object().video_url
+        lesson = serializer.save()
+
+        # Trigger AI processing if a new video was uploaded
+        if lesson.video_url and lesson.video_url != old_video_url:
+            transaction.on_commit(
+                lambda: trigger_video_processing.delay(
+                    lesson_id=lesson.id,
+                    course_id=lesson.course_id,
+                    video_url=lesson.video_url,
+                    tenant_id=lesson.tenant_id,
+                )
+            )
 
 
 class LessonResourceViewSet(ModelViewSet):
