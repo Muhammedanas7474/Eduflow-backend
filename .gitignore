@@ -4,12 +4,25 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.pyd
+*.pyo
 
 # =========================
-# Virtual environment
+# Virtual Environments
 # =========================
 venv/
+.env/
+.venv/
+env/
+
+# =========================
+# Environment Variables / Secrets
+# =========================
 .env
+.env.*
+*.env
+.env.docker
 
 # =========================
 # Django
@@ -17,11 +30,13 @@ venv/
 db.sqlite3
 staticfiles/
 media/
+*.sqlite3
 
 # =========================
 # Logs
 # =========================
 *.log
+logs/
 
 # =========================
 # OS / Editor
@@ -30,20 +45,36 @@ media/
 .vscode/
 .idea/
 
+# =========================
+# Docker
+# =========================
+docker-compose.override.yml
 
-# Environment
-.env
+# =========================
+# Testing / Coverage
+# =========================
+.coverage
+htmlcov/
+.pytest_cache/
 
-# Python cache
-__pycache__/
-*.pyc
+# =========================
+# Ruff / Black / isort cache
+# =========================
+.ruff_cache/
+.mypy_cache/
 
-__pycache__/
-*.pyc
+# =========================
+# Node (if frontend exists)
+# =========================
+node_modules/
+dist/
+build/
 
-
-
-.env
-.env.*
-*.env
-.env.docker
+# =========================
+# AI / Model Artifacts
+# =========================
+*.pt
+*.bin
+*.onnx
+*.ckpt
+*.model
