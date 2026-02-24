@@ -30,7 +30,7 @@ class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="lessons")
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
-    video_url = models.URLField()
+    video_url = models.URLField(max_length=1000)
     order = models.PositiveIntegerField()
     is_active = models.BooleanField(default=True)
 
@@ -57,7 +57,7 @@ class LessonResource(models.Model):
         Lesson, on_delete=models.CASCADE, related_name="resources"
     )
     title = models.CharField(max_length=255)
-    file_url = models.URLField()
+    file_url = models.URLField(max_length=1000)
     file_type = models.CharField(max_length=50)  # e.g. 'pdf', 'docx'
     created_at = models.DateTimeField(auto_now_add=True)
 

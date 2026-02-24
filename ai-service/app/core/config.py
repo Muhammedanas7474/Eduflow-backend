@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     huggingface_api_key: str = ""
 
     # Database (PGVector)
-    database_url: str = ""
+    database_url: str = " "
 
     # Whisper
     whisper_model_size: str = "base"
