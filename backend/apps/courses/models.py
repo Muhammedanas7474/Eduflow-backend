@@ -15,6 +15,20 @@ class Course(models.Model):
         related_name="created_courses",
     )
 
+    THEME_CHOICES = [
+        ("design", "Design"),
+        ("marketing", "Marketing"),
+        ("business", "Business"),
+        ("technology", "Technology"),
+        ("creative", "Creative"),
+        ("other", "Other"),
+    ]
+
+    cover_theme = models.CharField(
+        max_length=20, choices=THEME_CHOICES, default="technology"
+    )
+    category = models.CharField(max_length=100, default="Technology")
+
     is_active = models.BooleanField(default=True)
     is_approved = models.BooleanField(
         default=False

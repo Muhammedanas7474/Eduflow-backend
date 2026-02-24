@@ -432,6 +432,7 @@ class InstructorDashboardView(APIView):
             EnrollmentRequest,
             LessonProgress,
         )
+        from django.db.models import Count
 
         instructor = request.user
         tenant = instructor.tenant
@@ -475,6 +476,49 @@ class InstructorDashboardView(APIView):
             (total_progress / total_possible * 100) if total_possible > 0 else 0, 1
         )
 
+        # Advanced UI Data Features
+        top_courses_queryset = (
+            Course.objects.filter(tenant=tenant, created_by=instructor)
+            .annotate(student_count=Count("enrollments"))
+            .order_by("-student_count")[:6]
+        )
+
+        top_courses = [
+            {
+                "id": str(course.id),
+                "title": course.title,
+                "student_count": course.student_count,
+            }
+            for course in top_courses_queryset
+        ]
+
+        # Recent Activity Feed (Using Enrollments as proxy for activity)
+        recent_enrollments = (
+            Enrollment.objects.filter(tenant=tenant, course__in=my_courses)
+            .select_related("student", "course")
+            .order_by("-enrolled_at")[:5]
+        )
+
+        from django.utils import timezone
+        from django.utils.timesince import timesince
+
+        recent_activity = []
+        for enr in recent_enrollments:
+            recent_activity.append(
+                {
+                    "id": str(enr.id),
+                    "type": "enrollment",
+                    "message": f"enrolled in {enr.course.title}",
+                    "user_name": getattr(enr.student, "full_name", "")
+                    or (
+                        enr.student.email.split("@")[0].capitalize()
+                        if getattr(enr.student, "email", None)
+                        else f"User {str(enr.student.phone_number)[-4:]}"
+                    ),
+                    "time_ago": f"{timesince(enr.enrolled_at, timezone.now()).split(',')[0]} ago",
+                }
+            )
+
         return Response(
             success_response(
                 message="Instructor Dashboard",
@@ -488,6 +532,8 @@ class InstructorDashboardView(APIView):
                         "pending_enrollments": pending_enrollments,
                         "avg_completion_rate": avg_completion,
                     },
+                    "top_courses": top_courses,
+                    "recent_activity": recent_activity,
                 },
             )
         )

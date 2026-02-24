@@ -2,7 +2,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import serializers, status
 from rest_framework.decorators import action
-from rest_framework.filters import OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -20,8 +20,9 @@ from .serializers import (
 class CourseViewSet(ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["is_active", "is_approved"]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = ["is_active", "is_approved", "category"]
+    search_fields = ["title", "description"]
     ordering_fields = ["created_at", "title"]
     ordering = ["-created_at"]
 

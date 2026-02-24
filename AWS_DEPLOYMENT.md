@@ -23,7 +23,7 @@ Here is how each piece of your `docker-compose.yml` translates to AWS services:
 | Media / VOD storage | **Amazon S3** | You are already using S3 (`eduflow-videos-2026`). Continue this for videos, PDFs, and static files. |
 | Emails & Notifications | **Amazon SES & SNS** | For Django email dispatch and push notifications. |
 
--
+---
 
 ## 2. Step-by-Step Implementation Flow
 

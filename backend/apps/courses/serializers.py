@@ -4,6 +4,8 @@ from .models import Course, Lesson, LessonResource, Option, Question, Quiz
 
 
 class CourseSerializer(serializers.ModelSerializer):
+    student_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Course
         fields = [
@@ -12,14 +14,22 @@ class CourseSerializer(serializers.ModelSerializer):
             "description",
             "is_active",
             "is_approved",
+            "cover_theme",
+            "category",
             "created_at",
             "updated_at",
             "created_by",
+            "student_count",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+
+    def get_student_count(self, obj):
+        return obj.enrollments.count()
 
 
 class CourseListSerializer(serializers.ModelSerializer):
+    student_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Course
         fields = [
@@ -28,11 +38,17 @@ class CourseListSerializer(serializers.ModelSerializer):
             "description",
             "is_active",
             "is_approved",
+            "cover_theme",
+            "category",
             "created_at",
             "updated_at",
             "created_by",
+            "student_count",
         ]
         read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+
+    def get_student_count(self, obj):
+        return obj.enrollments.count()
 
 
 class LessonResourceSerializer(serializers.ModelSerializer):
